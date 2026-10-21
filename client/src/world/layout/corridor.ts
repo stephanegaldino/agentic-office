@@ -1,20 +1,28 @@
-// Corredor que atravessa o prédio de oeste a leste, com bebedouros, bancos e plantas.
-import { COL_W, CORE_COLS, CORRIDOR_H, CORRIDOR_Y } from '../constants';
+// Corredor que atravessa um andar de oeste a leste, com bebedouros, bancos e plantas.
+// Cada andar tem o seu (ver `geometry.floorY`).
+import { COL_W, CORE_COLS, CORRIDOR_DY, CORRIDOR_H, TOTAL_COLS } from '../constants';
 import { AreaBuilder } from './builder';
+import { floorY } from './geometry';
 import type { AreaLayout } from './types';
 
+/** Base do id do corredor (o id real leva o andar: `core:corredor@2`). */
 export const CORRIDOR_ID = 'core:corredor';
+
+export function corridorId(floor: number): string {
+  return `${CORRIDOR_ID}@${floor}`;
+}
 
 const TALL = ['ficus', 'palm', 'monstera', 'bonsai'] as const;
 const SMALL = ['fern', 'succulent', 'flower'] as const;
 /** Passadeira: uma família de cor só (azul-acinzentado discreto), com leve variação de tom. */
 const RUNNERS = ['#8b9bb0', '#8597ab', '#909fb3'] as const;
 
-export function layoutCorridor(cols: number): AreaLayout {
+export function layoutCorridor(floor: number, floors: number): AreaLayout {
+  const cols = TOTAL_COLS;
   const w = cols * COL_W;
-  const b = new AreaBuilder(CORRIDOR_ID, 'corridor', { x: 0, y: CORRIDOR_Y, w, h: CORRIDOR_H });
-  b.floor('concrete', 0, 0, w, CORRIDOR_H, 501);
-  // fachadas de vidro nas pontas do corredor (entrada principal a oeste)
+  const b = new AreaBuilder(corridorId(floor), 'corridor', { x: 0, y: floorY(floor, floors) + CORRIDOR_DY, w, h: CORRIDOR_H }, floor);
+  b.floor('concrete', 0, 0, w, CORRIDOR_H, 501 + floor * 97);
+  // fachadas de vidro nas pontas do corredor (entrada principal a oeste, no térreo)
   for (let ly = 0; ly < CORRIDOR_H; ly++) {
     b.furn('glass_partition', 0, ly, ly === 0 || ly === CORRIDOR_H - 1 ? 'end' : 'v', { order: 0.1 });
     b.furn('glass_partition', w - 1, ly, ly === 0 || ly === CORRIDOR_H - 1 ? 'end' : 'v', { order: 0.1 });
@@ -48,10 +56,10 @@ export function layoutCorridor(cols: number): AreaLayout {
     // planta alta onde as paredes das salas se encontram (uma coluna sim, outra não)
     if (!last && c % 2 === 1) b.furn('plant_tall', x + 15, 4, TALL[(c + 1) % TALL.length], { order: 0.5 });
     // passadeira estreita (um trecho por coluna), centrada no corredor
-    b.rug(x + 2, 1.95, COL_W - 4, 1.1, RUNNERS[c % RUNNERS.length], 502 + c);
+    b.rug(x + 2, 1.95, COL_W - 4, 1.1, RUNNERS[(c + floor) % RUNNERS.length], 502 + c + floor * 97);
     // pontos de conversa no meio do corredor
-    b.spot('talk', x + 5, 2, 'right', { group: `talk:corredor:${c}`, dx: -1 });
-    b.spot('talk', x + 6, 2, 'left', { group: `talk:corredor:${c}`, dx: 1 });
+    b.spot('talk', x + 5, 2, 'right', { group: `talk:corredor:${floor}:${c}`, dx: -1 });
+    b.spot('talk', x + 6, 2, 'left', { group: `talk:corredor:${floor}:${c}`, dx: 1 });
   }
   return b.build();
 }

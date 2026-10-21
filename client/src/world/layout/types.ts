@@ -2,7 +2,7 @@
 // que o render transforma em pixels e a simulação usa para caminhos e pontos de interesse.
 import type { Dir, FloorKind, FurnitureKind, WallStyle } from '../../art/api';
 
-export type AreaKind = 'reception' | 'restroom' | 'cafe' | 'lounge' | 'room' | 'corridor';
+export type AreaKind = 'reception' | 'lobby' | 'restroom' | 'cafe' | 'lounge' | 'room' | 'corridor';
 
 /** Retângulo em tiles (coordenadas absolutas do mundo). */
 export interface TileRect {
@@ -107,6 +107,8 @@ export interface SpotDef {
   id: string;
   kind: SpotKind;
   areaId: string;
+  /** Andar do prédio em que o spot está (0 = térreo). Anda-se a pé só dentro do próprio andar. */
+  floor: number;
   tx: number;
   ty: number;
   x: number;
@@ -130,6 +132,8 @@ export interface SpotDef {
 export interface AreaLayout {
   id: string;
   kind: AreaKind;
+  /** Andar do prédio em que a área está (0 = térreo). */
+  floor: number;
   /** Retângulo da área em tiles absolutos. */
   rect: TileRect;
   floors: FloorPatch[];

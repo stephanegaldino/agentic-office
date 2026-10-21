@@ -83,12 +83,14 @@ export class SpotRegistry {
    * Spot livre de um tipo, o mais próximo de `near` (distância Manhattan em tiles), opcionalmente
    * filtrado. Com `rng`, sorteia entre os 3 mais próximos para variar o destino.
    */
-  findFree(kind: SpotKind, opts: { near?: { tx: number; ty: number }; filter?: (s: SpotDef) => boolean; by?: string; rng?: () => number } = {}): SpotDef | null {
+  findFree(kind: SpotKind, opts: { near?: { tx: number; ty: number }; filter?: (s: SpotDef) => boolean; by?: string; rng?: () => number; floor?: number } = {}): SpotDef | null {
     const list = this.byKind.get(kind);
     if (!list) return null;
     const cands: { s: SpotDef; d: number }[] = [];
     for (const s of list) {
       if (!this.isFree(s.id, opts.by)) continue;
+      // não há tiles ligando um andar ao outro: um spot de outro andar seria inalcançável a pé
+      if (opts.floor !== undefined && s.floor !== opts.floor) continue;
       if (opts.filter && !opts.filter(s)) continue;
       const d = opts.near ? Math.abs(s.tx - opts.near.tx) + Math.abs(s.ty - opts.near.ty) : 0;
       cands.push({ s, d });
@@ -100,10 +102,11 @@ export class SpotRegistry {
   }
 
   /** Grupo (par) totalmente livre de um tipo: retorna os spots do grupo. */
-  findFreeGroup(kind: SpotKind, opts: { rng?: () => number; filter?: (g: readonly SpotDef[]) => boolean } = {}): readonly SpotDef[] | null {
+  findFreeGroup(kind: SpotKind, opts: { rng?: () => number; filter?: (g: readonly SpotDef[]) => boolean; floor?: number } = {}): readonly SpotDef[] | null {
     const groups: (readonly SpotDef[])[] = [];
     const seen = new Set<string>();
     for (const s of this.byKind.get(kind) ?? []) {
+      if (opts.floor !== undefined && s.floor !== opts.floor) continue;
       if (!s.group || seen.has(s.group)) continue;
       seen.add(s.group);
       const g = this.group(s.group);

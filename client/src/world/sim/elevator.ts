@@ -1,4 +1,5 @@
-// Elevadores da recepção: portas animadas (estados 0..4) que abrem enquanto alguém entra/sai.
+// Elevadores da recepção (térreo) e dos halls dos andares de cima: portas animadas (estados 0..4)
+// que abrem enquanto alguém entra/sai. Cada andar tem os seus, alinhados no mesmo poço.
 
 /** Velocidade da porta: estados por segundo (0 -> 4 em ~0,45 s). */
 const DOOR_SPEED = 9;
@@ -18,6 +19,8 @@ export class Elevator {
   constructor(
     readonly index: number,
     readonly spotId: string,
+    /** Andar em que este elevador abre (0 = térreo). */
+    readonly floor = 0,
   ) {}
 
   request(id: string): void {

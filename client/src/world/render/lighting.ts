@@ -7,7 +7,7 @@
 // montagem de salas); por frame, um drawImage em 'multiply' e alguns sprites de brilho em cache.
 import { TILE, type ArtModule, type ScreenMode } from '../../art/api';
 import { mulberry32 } from '../../../../shared/hash';
-import { BUILDING_H, COL_W, CORRIDOR_H, CORRIDOR_Y } from '../constants';
+import { COL_W, CORRIDOR_DY, CORRIDOR_H, buildingH } from '../constants';
 import type { ExteriorLayout, SlotShell } from '../layout/exterior';
 import type { RoomState } from '../sim/room-state';
 import type { Sim } from '../sim/sim';
@@ -426,22 +426,25 @@ export class Lighting {
     warm: HTMLCanvasElement,
   ): void {
     const bw = this.sim.building.cols * COL_W * TILE;
-    const bh = BUILDING_H * TILE;
+    const bh = buildingH(this.sim.building.floors) * TILE;
+    const bottom = buildingH(this.sim.building.floors);
     for (const [vis, l] of lit) {
       if (l < 0.3) continue;
       const r = vis.layout.rect;
       if (r.y === 0) {
         // janelas da parede norte -> gramado ao norte do prédio
         for (const w of vis.wallItems) if (w.kind === 'window') halo(warm, w.cx, -12, 58, 30, 0.55 * k * l);
-      } else if (vis.layout.kind !== 'corridor' && r.y + r.h >= BUILDING_H) {
+      } else if (vis.layout.kind !== 'corridor' && r.y + r.h >= bottom) {
         // salas ao sul: brilho suave sobre a cerca viva e a calçada
         for (const fx of [0.25, 0.75]) halo(warm, (r.x + r.w * fx) * TILE, bh + 16, 96, 30, 0.35 * k * l);
       }
     }
-    // fachadas de vidro do corredor (entrada a oeste e ponta leste)
-    const cy = (CORRIDOR_Y + CORRIDOR_H / 2) * TILE;
-    halo(warm, -20, cy, 56, 92, 0.6 * k);
-    halo(warm, bw + 20, cy, 56, 92, 0.45 * k);
+    // fachadas de vidro do corredor (entrada a oeste e ponta leste), em CADA andar
+    for (const corr of this.sim.building.corridors) {
+      const cy = (corr.rect.y + CORRIDOR_H / 2) * TILE;
+      halo(warm, -20, cy, 56, 92, 0.6 * k);
+      halo(warm, bw + 20, cy, 56, 92, 0.45 * k);
+    }
     // janelas do corredor que dão para os pátios dos slots vazios
     for (const w of scene.shellWindows) {
       const slot = Number(w.areaId.slice(6));
@@ -547,7 +550,7 @@ export class Lighting {
     for (const sh of scene.shells) {
       if (sh.rect.y !== 0 || scene.roomInSlot(sh.slot)) continue;
       const ws = scene.shellWindows.filter((w) => w.areaId === `shell:${sh.slot}`);
-      draw(ws, { x: sh.rect.x * TILE, y: CORRIDOR_Y * TILE, w: sh.rect.w * TILE, h: CORRIDOR_H * TILE });
+      draw(ws, { x: sh.rect.x * TILE, y: (sh.rect.y + CORRIDOR_DY) * TILE, w: sh.rect.w * TILE, h: CORRIDOR_H * TILE });
     }
   }
 

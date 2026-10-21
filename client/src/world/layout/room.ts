@@ -13,13 +13,15 @@ import { FURNITURE, type Dir, type FurnitureKind, type RoomTheme, type WallStyle
 import { mulberry32 } from '../../../../shared/hash';
 import { DOOR_W, DOOR_X, TILE } from '../constants';
 import { AreaBuilder, type SpotOpts } from './builder';
-import { slotRect, slotSide } from './geometry';
+import { slotFloor, slotRect, slotSide } from './geometry';
 import type { AreaLayout, SpotDef, SpotKind } from './types';
 
 export interface RoomInput {
   id: string;
   slot: number;
   seed: number;
+  /** Total de andares do prédio: a vaga só tem y absoluto em função disso (ver `geometry.floorY`). */
+  floors: number;
 }
 
 const PLANTS_TALL = ['palm', 'ficus', 'monstera', 'bonsai'] as const;
@@ -67,12 +69,13 @@ export function roomVariant(seed: number): RoomVariant {
 }
 
 export function layoutProjectRoom(room: RoomInput, theme: RoomTheme): AreaLayout {
-  const rect = slotRect(room.slot);
+  const rect = slotRect(room.slot, room.floors);
   const side = slotSide(room.slot);
+  const floor = slotFloor(room.slot);
   const rng = mulberry32(room.seed ^ 0x5eed);
   const pick = <T,>(arr: readonly T[]): T => arr[Math.floor(rng() * arr.length) % arr.length];
   const v = roomVariant(room.seed);
-  const b = new AreaBuilder(room.id, 'room', rect);
+  const b = new AreaBuilder(room.id, 'room', rect, floor);
   const area = b.area;
   area.side = side;
   const wall: WallStyle = theme.wall;

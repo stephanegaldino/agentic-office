@@ -21,7 +21,7 @@ import { buildAnim, furnitureScale, sweepDelay } from '../render/anim';
 import { ambientAt } from '../render/daylight';
 
 function spot(id: string, kind: SpotDef['kind'], extra: Partial<SpotDef> = {}): SpotDef {
-  return { id, kind, areaId: 'a', tx: 0, ty: 0, x: 0, y: 0, dir: 'up', ...extra };
+  return { id, kind, areaId: 'a', floor: 0, tx: 0, ty: 0, x: 0, y: 0, dir: 'up', ...extra };
 }
 
 describe('modos de comportamento', () => {

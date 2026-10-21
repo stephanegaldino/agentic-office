@@ -7,7 +7,8 @@
 import { TILE } from '../../art/api';
 import type { WorldOptions } from '../api';
 import type { Camera } from '../camera';
-import { COL_W, CORRIDOR_Y, SOUTH_Y } from '../constants';
+import { COL_W, CORRIDOR_DY, FLOOR_H, SOUTH_DY } from '../constants';
+import { coreBase } from '../layout/core';
 import type { Character } from '../sim/character';
 import { shellAgeKey, shellBubbleAlpha, shellBubbleText, STORM_LIFT, unitHash } from '../sim/shell';
 import type { Sim } from '../sim/sim';
@@ -46,12 +47,21 @@ export const TINY_ZOOM = 0.6;
 const OVERVIEW_PER_ROOM = 1;
 const OVERVIEW_TOTAL = 4;
 
+/** Nome de cada área do núcleo, pela BASE do id (o id real leva o andar: `core:copa@2`). */
 const CORE_NAMES: Record<string, string> = {
   'core:recepcao': tr('Recepção'),
+  'core:hall': tr('Elevadores'),
   'core:banheiros': tr('Banheiros'),
   'core:copa': tr('Copa'),
   'core:lounge': tr('Lounge'),
 };
+
+/** Rótulo da pílula de uma área do núcleo: nos andares de cima, com o número do andar. */
+function coreLabel(id: string, floor: number): string | null {
+  const name = CORE_NAMES[coreBase(id)];
+  if (!name) return null;
+  return floor === 0 ? name : `${name} · ${floor + 1}º`;
+}
 
 /** 'shell' = espera de shell: balão escuro de terminal com texto verde. 'say' = fala das rodas (papo, torcida, apostas). */
 type Tone = 'info' | 'alert' | 'deliver' | 'shell' | 'say';
@@ -397,7 +407,10 @@ export class Overlay {
       if (it.type !== 'bubble' || (it.tone !== 'info' && it.tone !== 'shell' && it.tone !== 'say') || it.prio >= 75) continue;
       // por área FÍSICA (onde o personagem está agora), que é o que polui a tela
       const ch = it.ch;
-      rin.push({ room: `${Math.floor(ch.tx / COL_W)}:${ch.ty < CORRIDOR_Y ? 'n' : ch.ty < SOUTH_Y ? 'c' : 's'}`, prio: it.prio, changedAt: it.changedAt });
+      // a chave agrupa por andar (faixa de FLOOR_H), coluna e banda dentro do andar
+      const band = Math.floor(ch.ty / FLOOR_H);
+      const ly = ch.ty - band * FLOOR_H;
+      rin.push({ room: `${band}:${Math.floor(ch.tx / COL_W)}:${ly < CORRIDOR_DY ? 'n' : ly < SOUTH_DY ? 'c' : 's'}`, prio: it.prio, changedAt: it.changedAt });
       idx.push(it);
     }
     if (!idx.length) return;
@@ -419,7 +432,14 @@ export class Overlay {
       const anim = room ? buildAnim(room.phase, room.progress(now)) : null;
       // texto da placa quando ela fica grande o bastante para ler; senão, o nome flutuante
       const rect = this.renderer.signRect(vis);
-      const text = room ? room.info.name : vis.id === 'core:recepcao' ? 'Habblaud' : null;
+      // placa: nome da sala; no térreo, a marca na recepção; nos andares de cima, o número do andar
+      const text = room
+        ? room.info.name
+        : vis.layout.kind === 'reception'
+          ? 'Habblaud'
+          : vis.layout.kind === 'lobby'
+            ? `${vis.layout.floor + 1}º andar`
+            : null;
       const readable = !!rect && rect.h * zoom >= SIGN_MIN_PX;
       if (readable && rect && text && (!anim || anim.sign >= 1)) {
         const ax = this.sx(rect.x);
@@ -439,8 +459,9 @@ export class Overlay {
         // endereço antigo de uma mudança: o nome já está na sala nova
         if (!room.present || room.ghost || (anim && anim.walls < 0.6)) continue;
         this.drawRoomPill(room.info.name, cx, cy, colW - 8, room.accounts, this.countIn(room.id), room.theme.accent, room.lightOn);
-      } else if (CORE_NAMES[vis.id]) {
-        this.drawCorePill(CORE_NAMES[vis.id], cx, cy, colW - 8);
+      } else {
+        const label = coreLabel(vis.id, vis.layout.floor);
+        if (label) this.drawCorePill(label, cx, cy, colW - 8);
       }
     }
   }

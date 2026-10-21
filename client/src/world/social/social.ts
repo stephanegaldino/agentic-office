@@ -8,7 +8,7 @@ import type { Dir, HeldItem, Pose } from '../../art/api';
 import type { AgentSocial, SocialEvent } from '../api';
 import { mulberry32 } from '../../../../shared/hash';
 import { TILE } from '../constants';
-import { CAFE_ID, LOUNGE_ID, RECEPTION_ID, RESTROOM_ID } from '../layout/core';
+import { CAFE_ID, LOBBY_ID, LOUNGE_ID, RECEPTION_ID, RESTROOM_ID, coreBase, coreId } from '../layout/core';
 import type { SpotDef } from '../layout/types';
 import { FREE } from '../path/grid';
 import { facing, type Character } from '../sim/character';
@@ -62,7 +62,7 @@ const COIN_COLOR = '#ffd34d';
 const LOSS_COLOR = '#ff8a8a';
 
 const KIND_LIST = Object.keys(KINDS) as GatherKind[];
-const PLACES: Readonly<Record<string, string>> = { [LOUNGE_ID]: tr('Lounge'), [CAFE_ID]: tr('Copa'), [RECEPTION_ID]: tr('Recepção'), [RESTROOM_ID]: tr('Banheiros') };
+const PLACES: Readonly<Record<string, string>> = { [LOUNGE_ID]: tr('Lounge'), [CAFE_ID]: tr('Copa'), [RECEPTION_ID]: tr('Recepção'), [LOBBY_ID]: tr('Hall'), [RESTROOM_ID]: tr('Banheiros') };
 /** O que se perde/ganha em cada jogo (texto do extrato: "Perdeu no jokenpô para Rafaela"). */
 const MATCH_WHAT: Partial<Record<GatherKind, string>> = {
   rps: tr('no jokenpô'),
@@ -116,14 +116,16 @@ export class Social {
 
   private candidates(ch: Character, now: number): Character[] {
     const out: Character[] = [];
-    for (const c of this.sim.chars.values()) if (c !== ch && this.canJoin(c, now)) out.push(c);
+    const floor = this.sim.charFloor(ch);
+    for (const c of this.sim.chars.values()) if (c !== ch && this.sim.charFloor(c) === floor && this.canJoin(c, now)) out.push(c);
     return out;
   }
 
   /** Há alguém livre para uma roda com `ch`? */
   hasCompany(ch: Character, now: number): boolean {
-    for (const c of this.sim.chars.values()) if (c !== ch && this.canJoin(c, now)) return true;
-    return [...this.gatherings].some((g) => this.openSpotFor(g, ch) !== undefined);
+    const floor = this.sim.charFloor(ch);
+    for (const c of this.sim.chars.values()) if (c !== ch && this.sim.charFloor(c) === floor && this.canJoin(c, now)) return true;
+    return [...this.gatherings].some((g) => g.floor === floor && this.openSpotFor(g, ch) !== undefined);
   }
 
   // =================================================================== começar / entrar
@@ -211,6 +213,7 @@ export class Social {
     const g: Gathering = {
       id,
       kind,
+      floor: this.sim.charFloor(host),
       host: host.id,
       members: [],
       phase: 'gather',
@@ -308,7 +311,8 @@ export class Social {
     if (g.kind === 'kitchen') {
       // passa na cafeteira (ou no bebedouro) antes de sentar para o papo
       const kind = hasTrait(personaFor(ch.info.seed), 'cafeina') || ch.rng() < 0.65 ? 'coffee' : 'water';
-      const stop = sim.spots.findFree(kind, { by: ch.id, rng: ch.rng }) ?? sim.spots.findFree(kind === 'coffee' ? 'water' : 'coffee', { by: ch.id, rng: ch.rng });
+      const f = sim.charFloor(ch);
+      const stop = sim.spots.findFree(kind, { by: ch.id, floor: f, rng: ch.rng }) ?? sim.spots.findFree(kind === 'coffee' ? 'water' : 'coffee', { by: ch.id, floor: f, rng: ch.rng });
       if (stop && ch.rng() < 0.8 && sim.reserveTemp(ch, stop)) {
         const coffee = stop.kind === 'coffee';
         steps.push(
@@ -425,12 +429,14 @@ export class Social {
   /** Lugares para `n` participantes da roda (null = não há lugar livre agora). */
   plan(kind: GatherKind, n: number, ch: Character): SeatPlan | null {
     const spots = this.sim.spots;
-    const free = (s: SpotDef) => spots.isFree(s.id, ch.id) && !this.inPool(s.id);
+    const floor = this.sim.charFloor(ch);
+    // só spots do andar do personagem: não há caminho a pé de um andar para o outro
+    const free = (s: SpotDef) => s.floor === floor && spots.isFree(s.id, ch.id) && !this.inPool(s.id);
     switch (kind) {
       case 'tv':
       case 'videogame': {
-        if (this.tvBusy()) return null;
-        const seats = [...spots.ofKind('sofa'), ...spots.ofKind('armchair')].filter((s) => s.areaId === LOUNGE_ID && free(s));
+        if (this.tvBusy(floor)) return null;
+        const seats = [...spots.ofKind('sofa'), ...spots.ofKind('armchair')].filter((s) => s.areaId === coreId(LOUNGE_ID, floor) && free(s));
         const sofa = seats.filter((s) => s.kind === 'sofa').sort((a, b) => a.tx - b.tx);
         const chairs = seats.filter((s) => s.kind !== 'sofa');
         if (kind === 'videogame') {
@@ -453,7 +459,7 @@ export class Social {
         return a.length >= 2 && n <= 2 ? { seats: a.slice(0, 2), pool: a.slice(0, 2) } : null;
       }
       case 'pingpong': {
-        const g = spots.findFreeGroup('pingpong', { filter: (grp) => grp.every(free) });
+        const g = spots.findFreeGroup('pingpong', { floor, filter: (grp) => grp.every(free) });
         if (!g) return null;
         const watch = spots.ofKind('watch').filter(free);
         if (n > 2 + watch.length) return null;
@@ -461,14 +467,14 @@ export class Social {
       }
       case 'talk':
       case 'rps': {
-        const g = spots.findFreeGroup('talk', { rng: ch.rng, filter: (grp) => grp.every(free) });
+        const g = spots.findFreeGroup('talk', { floor, rng: ch.rng, filter: (grp) => grp.every(free) });
         if (!g) return null;
         return { seats: [...g], pool: [...g] };
       }
       case 'kitchen':
-        return this.kitchenSeats(n, free, ch.rng);
+        return this.kitchenSeats(n, free, ch.rng, floor);
       case 'mirror': {
-        const sinks = spots.ofKind('sink').filter((s) => s.areaId === RESTROOM_ID && free(s)).sort((a, b) => a.tx - b.tx);
+        const sinks = spots.ofKind('sink').filter((s) => s.areaId === coreId(RESTROOM_ID, floor) && free(s)).sort((a, b) => a.tx - b.tx);
         if (n === 1) return sinks.length ? { seats: [sinks[Math.floor(ch.rng() * sinks.length)]], pool: [] } : null;
         for (let i = 0; i + 1 < sinks.length; i++) if (sinks[i + 1].tx === sinks[i].tx + 1) return { seats: [sinks[i], sinks[i + 1]], pool: [] };
         return null;
@@ -480,8 +486,8 @@ export class Social {
    * Mesa da copa: pares de cadeiras frente a frente (mesa comprida: norte/sul; mesinhas: oeste/leste).
    * Para 3–4, dois pares vizinhos da mesa comprida.
    */
-  private kitchenSeats(n: number, free: (s: SpotDef) => boolean, rng: () => number): SeatPlan | null {
-    const seats = this.sim.spots.ofKind('cafe_seat').filter((s) => s.areaId === CAFE_ID);
+  private kitchenSeats(n: number, free: (s: SpotDef) => boolean, rng: () => number, floor: number): SeatPlan | null {
+    const seats = this.sim.spots.ofKind('cafe_seat').filter((s) => s.areaId === coreId(CAFE_ID, floor));
     const at = (x: number, y: number, dir: Dir) => seats.find((s) => s.tx === x && s.ty === y && s.dir === dir);
     const pairs: SpotDef[][] = [];
     for (const s of seats) {
@@ -517,9 +523,9 @@ export class Social {
     return !!owner && owner.startsWith('g:');
   }
 
-  /** A TV do lounge está ocupada (programa ou videogame). */
-  tvBusy(): boolean {
-    for (const g of this.gatherings) if ((g.kind === 'tv' || g.kind === 'videogame') && g.phase !== 'ended') return true;
+  /** A TV do lounge daquele andar está ocupada (programa ou videogame). */
+  tvBusy(floor: number): boolean {
+    for (const g of this.gatherings) if (g.floor === floor && (g.kind === 'tv' || g.kind === 'videogame') && g.phase !== 'ended') return true;
     return false;
   }
 
@@ -1231,7 +1237,7 @@ export class Social {
     if (this.events.length >= MAX_EVENTS) this.events.shift();
     const first = g.members.find((m) => m.spot);
     const area = first?.spot ? this.sim.spots.get(first.spot)?.areaId : undefined;
-    const place = (area && (PLACES[area] ?? this.sim.rooms.get(area)?.info.name)) || tr('Escritório');
+    const place = (area && (PLACES[coreBase(area)] ?? this.sim.rooms.get(area)?.info.name)) || tr('Escritório');
     this.events.push({ id: `social:${g.id}:${++this.eventSeq}`, at: now, icon, agentId, text, place });
   }
 

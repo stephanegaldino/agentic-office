@@ -4,10 +4,10 @@ import { partsKey } from '../../../../shared/appearance';
 import type { AgentInfo, OfficeSnapshot, Provider, RoomInfo } from '../../../../shared/types';
 import type { ArtModule, Dir, RoomTheme } from '../../art/api';
 import type { WorldOptions } from '../api';
-import { COL_W, COMPACT_DELAY_MS, DISMANTLE_DELAY_MS, FOOT_DX, FOOT_DY, MISSING_DEBOUNCE_MS, RUN_SPEED, TILE, WALK_SPEED } from '../constants';
+import { COMPACT_DELAY_MS, DISMANTLE_DELAY_MS, FLOOR_H, FOOT_DX, FOOT_DY, MISSING_DEBOUNCE_MS, RUN_SPEED, TILE, WALK_SPEED } from '../constants';
 import { assembleBuilding, type BuildingLayout } from '../layout/building';
-import { RECEPTION_ID } from '../layout/core';
-import { columnsFor, inRect } from '../layout/geometry';
+import { LOBBY_ID, RECEPTION_ID, coreId } from '../layout/core';
+import { floorsFor, inRect, slotFloor } from '../layout/geometry';
 import { layoutProjectRoom } from '../layout/room';
 import type { SpotDef, SpotKind } from '../layout/types';
 import { PathFinder } from '../path/astar';
@@ -151,10 +151,10 @@ export class Sim {
   ) {
     this.visit = !!mode.visit;
     this.social = new Social(this, storage);
-    this.building = assembleBuilding(columnsFor([]), [], 0);
+    this.building = assembleBuilding(1, [], 0);
     this.finder = new PathFinder(this.building.grid);
     this.spots.setSpots(this.building.spots);
-    for (const s of this.spots.ofKind('elevator')) this.elevators.push(new Elevator(this.elevators.length, s.id));
+    this.syncElevators();
   }
 
   // =================================================================== snapshot
@@ -259,7 +259,7 @@ export class Sim {
     }
     // a primeira vaga livre do prédio (o slot do servidor só dá a ordem de chegada)
     const slot = this.freeSlot();
-    const layout = layoutProjectRoom({ id: r.id, slot, seed: r.seed }, theme);
+    const layout = layoutProjectRoom({ id: r.id, slot, seed: r.seed, floors: this.building.floors }, theme);
     const rs = new RoomState(r, theme, layout, first ? 'ready' : 'building', now, first, slot);
     this.rooms.set(r.id, rs);
     return rs;
@@ -509,28 +509,55 @@ export class Sim {
   }
 
   private pickElevator(ch: Character): Elevator {
-    let best = this.elevators[0];
-    for (const e of this.elevators) if (e.load < best.load || (e.load === best.load && ch.rng() < 0.5)) best = e;
+    const floor = this.charFloor(ch);
+    // só elevadores do andar do personagem e cujo spot ainda existe (o prédio pode ter encolhido)
+    const live = this.elevators.filter((e) => e.floor === floor && this.spots.get(e.spotId));
+    const pool = live.length ? live : this.elevators.filter((e) => this.spots.get(e.spotId));
+    let best = pool[0] ?? this.elevators[0];
+    for (const e of pool) if (e.load < best.load || (e.load === best.load && ch.rng() < 0.5)) best = e;
     return best;
+  }
+
+  /** Andar em que o personagem está (o da sala dele; sem sala, o térreo). */
+  charFloor(ch: Character): number {
+    const room = this.rooms.get(ch.roomId);
+    return room ? slotFloor(room.slot) : 0;
+  }
+
+  /**
+   * Mantém um Elevator por spot de elevador, com índice ESTÁVEL: os passos em andamento guardam o
+   * índice, então elevadores antigos nunca saem da lista (só deixam de ser escolhidos).
+   */
+  private syncElevators(): void {
+    const known = new Set(this.elevators.map((e) => e.spotId));
+    for (const s of this.spots.ofKind('elevator')) {
+      if (known.has(s.id)) continue;
+      this.elevators.push(new Elevator(this.elevators.length, s.id, s.floor));
+    }
   }
 
   // =================================================================== layout
 
-  /** Recalcula o prédio (largura, grade, spots) a partir das salas presentes. */
+  /** Recalcula o prédio (andares, grade, spots) a partir das salas presentes. */
   relayout(force = false): void {
     const present = [...this.rooms.values()].filter((r) => r.present);
-    let cols = columnsFor(present.map((r) => r.slot));
-    const cur = this.building.cols;
-    if (cols < cur && !force) {
-      // só encolhe quando ninguém está na faixa que vai sumir
-      const limit = cols * COL_W * TILE;
-      if ([...this.chars.values()].some((c) => !c.gone && c.x >= limit - TILE)) {
-        cols = cur;
+    let floors = floorsFor(present.map((r) => r.slot));
+    const cur = this.building.floors;
+    if (floors < cur && !force) {
+      // só perde um andar quando ninguém está na faixa que vai sumir (o andar de cima, y menor)
+      const limit = (cur - floors) * FLOOR_H * TILE;
+      if ([...this.chars.values()].some((c) => !c.gone && c.y < limit + TILE)) {
+        floors = cur;
         this.shrinkPending = true;
       } else this.shrinkPending = false;
     } else this.shrinkPending = false;
+
+    // Ganhar (ou perder) um andar empurra TODOS os andares pelo mesmo tanto, porque o térreo fica
+    // sempre embaixo: floorY(f, n) = (n-1-f)*FLOOR_H, logo o deslocamento não depende de f.
+    if (floors !== cur) this.reflowFloors(floors, (floors - cur) * FLOOR_H);
+
     const building = assembleBuilding(
-      cols,
+      floors,
       present.map((r) => r.layout),
       this.layoutVersion + 1,
     );
@@ -538,6 +565,7 @@ export class Sim {
     this.layoutVersion++;
     this.finder.setGrid(building.grid);
     const lost = this.spots.setSpots(building.spots);
+    this.syncElevators();
     for (const { owner } of lost) {
       const ch = this.chars.get(owner);
       if (!ch) continue;
@@ -566,6 +594,33 @@ export class Sim {
           ch.tx = n.x;
           ch.ty = n.y;
         }
+      }
+    }
+  }
+
+  /**
+   * O prédio mudou de altura: refaz o layout de cada sala no y novo da sua vaga e desloca em `dy`
+   * tiles tudo o que guarda posição absoluta (personagens, tiles de destino, caminhos em cache).
+   * As reservas de lugar sobrevivem: os ids dos spots não dependem do número de andares.
+   */
+  private reflowFloors(floors: number, dy: number): void {
+    for (const r of this.rooms.values()) {
+      if (r.phase === 'gone') continue;
+      r.layout = layoutProjectRoom({ id: r.id, slot: r.slot, seed: r.seed, floors }, r.theme);
+      r.version++;
+    }
+    if (!dy) return;
+    const dpy = dy * TILE;
+    for (const ch of this.chars.values()) {
+      ch.ty += dy;
+      ch.y += dpy;
+      if (ch.standTile) ch.standTile = { x: ch.standTile.x, y: ch.standTile.y + dy };
+      for (const st of ch.step ? [ch.step, ...ch.queue] : ch.queue) {
+        if (st.t !== 'go') continue;
+        st.ty += dy;
+        if (st.fy !== undefined) st.fy += dpy;
+        st.path = undefined;
+        st.i = undefined;
       }
     }
   }
@@ -672,7 +727,7 @@ export class Sim {
   moveRoom(room: RoomState, slot: number, now: number): void {
     const before = room.layout;
     const ghostId = `${room.id}#mudança${++this.moveSeq}`;
-    const ghostLayout = layoutProjectRoom({ id: ghostId, slot: room.slot, seed: room.seed }, room.theme);
+    const ghostLayout = layoutProjectRoom({ id: ghostId, slot: room.slot, seed: room.seed, floors: this.building.floors }, room.theme);
     const ghost = new RoomState({ ...room.info, id: ghostId, seed: room.seed }, room.theme, ghostLayout, 'ready', now, false, room.slot);
     ghost.ghost = true;
     ghost.listed = false;
@@ -688,7 +743,7 @@ export class Sim {
     });
 
     room.slot = slot;
-    room.layout = layoutProjectRoom({ id: room.id, slot, seed: room.seed }, room.theme);
+    room.layout = layoutProjectRoom({ id: room.id, slot, seed: room.seed, floors: this.building.floors }, room.theme);
     room.setPhase('building', now);
     room.lightOn = false;
     room.lightAt = -1e9;
@@ -1324,8 +1379,11 @@ export class Sim {
   }
 
   private lobbyTile(ch: Character): { x: number; y: number } {
-    const reception = this.building.core.find((a) => a.id === RECEPTION_ID)!;
-    const r = reception.rect;
+    const floor = this.charFloor(ch);
+    const hall =
+      this.building.core.find((a) => a.id === coreId(floor === 0 ? RECEPTION_ID : LOBBY_ID, floor)) ??
+      this.building.core.find((a) => a.kind === 'reception' || a.kind === 'lobby')!;
+    const r = hall.rect;
     for (let k = 0; k < 20; k++) {
       const x = r.x + 2 + Math.floor(ch.rng() * 12);
       const y = r.y + 3 + Math.floor(ch.rng() * 7);
@@ -1472,7 +1530,8 @@ export class Sim {
 
   private randomFree(kinds: SpotKind[], ch: Character): SpotDef | null {
     const cands: SpotDef[] = [];
-    for (const k of kinds) for (const s of this.spots.ofKind(k)) if (this.spots.isFree(s.id, ch.id)) cands.push(s);
+    const floor = this.charFloor(ch);
+    for (const k of kinds) for (const s of this.spots.ofKind(k)) if (s.floor === floor && this.spots.isFree(s.id, ch.id)) cands.push(s);
     if (!cands.length) return null;
     return cands[Math.floor(ch.rng() * cands.length)];
   }
@@ -1484,17 +1543,17 @@ export class Sim {
     // colegas à toa: a vontade é de companhia (a personalidade dosa) — TV, jogo, papo, aposta...
     if (this.social.hasCompany(ch, now) && rng() < 0.45 + persona.sociability * 0.4 && this.social.tryInitiate(ch, now, false)) return true;
     const avail: Partial<Record<IdleActivity, boolean>> = {
-      coffee: !!this.spots.findFree('coffee', { by: ch.id }),
-      water: !!this.spots.findFree('water', { by: ch.id }),
-      bathroom: !!this.spots.findFree('stall', { by: ch.id }),
-      lounge: LOUNGE_SEATS.some((k) => !!this.spots.findFree(k, { by: ch.id })),
+      coffee: !!this.spots.findFree('coffee', { by: ch.id, floor: this.charFloor(ch) }),
+      water: !!this.spots.findFree('water', { by: ch.id, floor: this.charFloor(ch) }),
+      bathroom: !!this.spots.findFree('stall', { by: ch.id, floor: this.charFloor(ch) }),
+      lounge: LOUNGE_SEATS.some((k) => !!this.spots.findFree(k, { by: ch.id, floor: this.charFloor(ch) })),
       // jogos e conversas são rodas (social/): aqui só o que se faz sozinho
       pingpong: false,
       talk: false,
-      window: !!this.spots.findFree('window', { by: ch.id }),
-      shelf: !!this.spots.findFree('shelf', { by: ch.id }),
-      arcade: !!this.spots.findFree('arcade', { by: ch.id }),
-      snack: !!this.spots.findFree('snack', { by: ch.id }),
+      window: !!this.spots.findFree('window', { by: ch.id, floor: this.charFloor(ch) }),
+      shelf: !!this.spots.findFree('shelf', { by: ch.id, floor: this.charFloor(ch) }),
+      arcade: !!this.spots.findFree('arcade', { by: ch.id, floor: this.charFloor(ch) }),
+      snack: !!this.spots.findFree('snack', { by: ch.id, floor: this.charFloor(ch) }),
       stretch: true,
       mirror: !!this.social.plan('mirror', 1, ch),
       phone: !!this.randomFree(PHONE_SEATS, ch),
@@ -1510,7 +1569,7 @@ export class Sim {
 
     switch (what) {
       case 'coffee': {
-        const s = this.spots.findFree('coffee', { near, by: ch.id, rng })!;
+        const s = this.spots.findFree('coffee', { near, by: ch.id, floor: this.charFloor(ch), rng })!;
         if (!this.reserveTemp(ch, s)) return false;
         this.pushLeave(ch, steps);
         goUse(s);
@@ -1518,7 +1577,7 @@ export class Sim {
         release(s);
         carry = 'coffee';
         if (rng() < 0.45) {
-          const seat = this.spots.findFree('cafe_seat', { by: ch.id, rng, near: { tx: s.tx, ty: s.ty } });
+          const seat = this.spots.findFree('cafe_seat', { by: ch.id, floor: this.charFloor(ch), rng, near: { tx: s.tx, ty: s.ty } });
           if (seat && this.reserveTemp(ch, seat)) {
             steps.push(
               { t: 'go', tx: seat.tx, ty: seat.ty, held: 'coffee' },
@@ -1532,7 +1591,7 @@ export class Sim {
         break;
       }
       case 'water': {
-        const s = this.spots.findFree('water', { near, by: ch.id, rng })!;
+        const s = this.spots.findFree('water', { near, by: ch.id, floor: this.charFloor(ch), rng })!;
         if (!this.reserveTemp(ch, s)) return false;
         this.pushLeave(ch, steps);
         goUse(s);
@@ -1542,12 +1601,12 @@ export class Sim {
         break;
       }
       case 'bathroom': {
-        const s = this.spots.findFree('stall', { by: ch.id, rng })!;
+        const s = this.spots.findFree('stall', { by: ch.id, floor: this.charFloor(ch), rng })!;
         if (!this.reserveTemp(ch, s)) return false;
         this.pushLeave(ch, steps);
         steps.push({ t: 'go', tx: s.tx, ty: s.ty }, { t: 'stall', spot: s.id, ms: between(rng, 5000, 12000), phase: 0 });
         release(s);
-        const sink = this.spots.findFree('sink', { near: { tx: s.tx, ty: s.ty }, by: ch.id });
+        const sink = this.spots.findFree('sink', { near: { tx: s.tx, ty: s.ty }, by: ch.id, floor: this.charFloor(ch) });
         if (sink && this.reserveTemp(ch, sink)) {
           goUse(sink);
           steps.push({ t: 'act', pose: 'use', ms: 2200 });
@@ -1582,8 +1641,8 @@ export class Sim {
       }
       case 'window': {
         // olhar pela janela ou dar uma conferida no quadro kanban da própria sala
-        const board = rng() < 0.35 ? this.spots.findFree('whiteboard', { by: ch.id, filter: (p) => p.areaId === ch.roomId }) : null;
-        const s = board ?? this.spots.findFree('window', { by: ch.id, rng });
+        const board = rng() < 0.35 ? this.spots.findFree('whiteboard', { by: ch.id, floor: this.charFloor(ch), filter: (p) => p.areaId === ch.roomId }) : null;
+        const s = board ?? this.spots.findFree('window', { by: ch.id, floor: this.charFloor(ch), rng });
         if (!s || !this.reserveTemp(ch, s)) return false;
         this.pushLeave(ch, steps);
         goUse(s);
@@ -1592,7 +1651,7 @@ export class Sim {
         break;
       }
       case 'shelf': {
-        const s = this.spots.findFree('shelf', { by: ch.id, rng })!;
+        const s = this.spots.findFree('shelf', { by: ch.id, floor: this.charFloor(ch), rng })!;
         if (!this.reserveTemp(ch, s)) return false;
         this.pushLeave(ch, steps);
         goUse(s);
@@ -1601,7 +1660,7 @@ export class Sim {
         break;
       }
       case 'arcade': {
-        const s = this.spots.findFree('arcade', { by: ch.id, rng })!;
+        const s = this.spots.findFree('arcade', { by: ch.id, floor: this.charFloor(ch), rng })!;
         if (!this.reserveTemp(ch, s)) return false;
         this.pushLeave(ch, steps);
         goUse(s);
@@ -1611,7 +1670,7 @@ export class Sim {
       }
       case 'snack': {
         // máquina de snacks ou geladeira da copa
-        const s = this.spots.findFree(rng() < 0.6 ? 'snack' : 'fridge', { by: ch.id, rng }) ?? this.spots.findFree('snack', { by: ch.id, rng });
+        const s = this.spots.findFree(rng() < 0.6 ? 'snack' : 'fridge', { by: ch.id, floor: this.charFloor(ch), rng }) ?? this.spots.findFree('snack', { by: ch.id, floor: this.charFloor(ch), rng });
         if (!s || !this.reserveTemp(ch, s)) return false;
         this.pushLeave(ch, steps);
         goUse(s);

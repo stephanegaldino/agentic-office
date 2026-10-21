@@ -5,9 +5,9 @@ import { TILE, type ArtModule, type CharacterFrameRequest, type IconName, type S
 import type { SeasonalTheme, WorldOptions } from '../api';
 import type { WorldAssets } from '../assets';
 import type { Camera } from '../camera';
-import { BUILDING_H, COL_W, CORE_COLS, CORRIDOR_Y } from '../constants';
+import { COL_W, CORE_COLS, CORRIDOR_DY, TOTAL_COLS, buildingH } from '../constants';
 import { layoutExterior, slotShell, type ExteriorLayout, type SlotShell } from '../layout/exterior';
-import { slotAt } from '../layout/geometry';
+import { floorY, slotAt } from '../layout/geometry';
 import type { ExteriorProp } from '../layout/types';
 import { screenModeFor } from '../sim/behavior';
 import type { Character } from '../sim/character';
@@ -85,7 +85,7 @@ export class Renderer {
   private base: HTMLCanvasElement | null = null;
   private baseX = 0;
   private baseY = 0;
-  private baseCols = -1;
+  private baseFloors = -1;
   private layoutVersion = -1;
   private assetsVersion = 0;
   private builtAssetsVersion = 0;
@@ -141,11 +141,11 @@ export class Renderer {
     const themeChanged = theme !== this.theme;
     this.theme = theme;
     const assetsChanged = this.builtAssetsVersion !== this.assetsVersion || themeChanged;
-    if (this.baseCols !== sim.building.cols || assetsChanged) this.buildBase();
+    if (this.baseFloors !== sim.building.floors || assetsChanged) this.buildBase();
     if (this.layoutVersion !== sim.layoutVersion || assetsChanged) {
       this.layoutVersion = sim.layoutVersion;
       const want = new Set<string>();
-      for (const a of [...sim.building.core, sim.building.corridor]) {
+      for (const a of [...sim.building.core, ...sim.building.corridors]) {
         want.add(a.id);
         const cur = this.areas.get(a.id);
         if (!cur || cur.layout !== a || assetsChanged) this.areas.set(a.id, buildAreaVis(this.art, a, undefined, this.assets, theme));
@@ -155,7 +155,12 @@ export class Renderer {
         want.add(room.id);
       }
       for (const id of [...this.areas.keys()]) if (!want.has(id)) this.areas.delete(id);
-      this.elevatorVis = this.areas.get('core:recepcao')?.wallItems.filter((w) => w.kind === 'elevator') ?? [];
+      this.elevatorVis = [];
+      for (const a of sim.building.core) {
+        if (a.kind !== 'reception' && a.kind !== 'lobby') continue;
+        const vis = this.areas.get(a.id);
+        if (vis) this.elevatorVis.push(...vis.wallItems.filter((w) => w.kind === 'elevator'));
+      }
     }
     // salas: (re)constrói quando surgem, mudam de layout ou de versão (nome/tema)
     this.occupiedSlots.clear();
@@ -173,9 +178,9 @@ export class Renderer {
 
   /** Camada base: área externa, pátios dos slots e fechamentos do corredor. */
   private buildBase(): void {
-    const cols = this.sim.building.cols;
-    this.baseCols = cols;
-    this.exterior = layoutExterior(cols);
+    const floors = this.sim.building.floors;
+    this.baseFloors = floors;
+    this.exterior = layoutExterior(floors);
     const b = this.exterior.bounds;
     this.baseX = b.x * TILE;
     this.baseY = b.y * TILE;
@@ -192,12 +197,14 @@ export class Renderer {
     for (let x = this.baseX + 4; x < this.baseX + c.width; x += 24) ctx.fillRect(x, ly, 12, 2);
     this.shells = [];
     this.shellWindows = [];
-    for (let col = CORE_COLS; col < cols; col++) {
-      for (const side of ['north', 'south'] as const) {
-        const sh = slotShell(slotAt(col, side), col === cols - 1);
-        this.shells.push(sh);
-        paintShell(this.art, ctx, sh.floors, sh.walls);
-        for (const w of sh.windows) this.shellWindows.push(toWallVis(w, `shell:${sh.slot}`));
+    for (let f = 0; f < floors; f++) {
+      for (let col = CORE_COLS; col < TOTAL_COLS; col++) {
+        for (const side of ['north', 'south'] as const) {
+          const sh = slotShell(slotAt(f, col, side), floors, col === TOTAL_COLS - 1);
+          this.shells.push(sh);
+          paintShell(this.art, ctx, sh.floors, sh.walls);
+          for (const w of sh.windows) this.shellWindows.push(toWallVis(w, `shell:${sh.slot}`));
+        }
       }
     }
     this.desaturate(ctx);
@@ -246,7 +253,7 @@ export class Renderer {
       this.grass = null;
       this.clearColor = '#6f9a5a';
     }
-    this.finishBase(ctx, cols);
+    this.finishBase(ctx, floors);
     this.base = c;
   }
 
@@ -265,7 +272,7 @@ export class Renderer {
   }
 
   /** Acabamento da camada externa: bordas levemente mais escuras (vinheta) e o capacho da entrada. */
-  private finishBase(ctx: CanvasRenderingContext2D, cols: number): void {
+  private finishBase(ctx: CanvasRenderingContext2D, floors: number): void {
     const b = this.exterior.bounds;
     const x0 = b.x * TILE;
     const y0 = b.y * TILE;
@@ -274,7 +281,8 @@ export class Renderer {
     ctx.save();
     // vinheta: escurece com a distância ao prédio e chega ao tom da grama "de fora" exatamente na
     // borda da área desenhada (máscara de 1 px por tile, ampliada com suavização)
-    const bwT = cols * COL_W;
+    const bwT = TOTAL_COLS * COL_W;
+    const bhT = buildingH(floors);
     const smooth = (a: number, z: number, v: number) => {
       const t = Math.max(0, Math.min(1, (v - a) / Math.max(1e-6, z - a)));
       return t * t * (3 - 2 * t);
@@ -290,7 +298,7 @@ export class Renderer {
           const wx = b.x + tx + 0.5;
           const wy = b.y + ty + 0.5;
           const fx = wx < 0 ? smooth(6, -b.x, -wx) : wx > bwT ? smooth(6, b.x + b.w - bwT, wx - bwT) : 0;
-          const fy = wy < 0 ? smooth(5, -b.y, -wy) : wy > BUILDING_H ? smooth(12, b.y + b.h - BUILDING_H, wy - BUILDING_H) : 0;
+          const fy = wy < 0 ? smooth(5, -b.y, -wy) : wy > bhT ? smooth(12, b.y + b.h - bhT, wy - bhT) : 0;
           const i = (ty * b.w + tx) * 4;
           img.data[i] = 18;
           img.data[i + 1] = 40;
@@ -305,8 +313,8 @@ export class Renderer {
     } catch {
       // sem vinheta
     }
-    // capacho diante da fachada de vidro da entrada (oeste do corredor)
-    const my = (CORRIDOR_Y + 1.25) * TILE;
+    // capacho diante da fachada de vidro da entrada principal (oeste do corredor do TÉRREO)
+    const my = (floorY(0, floors) + CORRIDOR_DY + 1.25) * TILE;
     ctx.fillStyle = '#3f4652';
     ctx.fillRect(-1.75 * TILE, my, 1.5 * TILE, 2.5 * TILE);
     ctx.fillStyle = '#596170';
@@ -698,7 +706,7 @@ export class Renderer {
   /** Retângulo (px de mundo) da área de texto da placa de uma área, se houver. */
   signRect(vis: AreaVis): { x: number; y: number; w: number; h: number } | null {
     if (!vis.sign) return null;
-    if (!vis.room && this.assets?.signage && vis.id === 'core:recepcao') return null;
+    if (!vis.room && this.assets?.signage && vis.layout.kind === 'reception') return null;
     const s = wallSprites(this.art, 'sign', vis.sign.variant, 0, vis.sign.seed);
     if (!s) return null;
     const o = wallItemOrigin(vis.sign, s.base);

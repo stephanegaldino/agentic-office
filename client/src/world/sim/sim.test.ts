@@ -6,6 +6,7 @@ import type { Appearance, ArtModule, RoomTheme } from '../../art/api';
 import { DEFAULT_WORLD_OPTIONS } from '../api';
 import type { Character } from './character';
 import { SHELL_DONE_TOOL, Sim } from './sim';
+import { FLOOR_H, ROOMS_PER_FLOOR } from '../constants';
 
 const theme: RoomTheme = {
   carpet: '#4f6d8f',
@@ -446,7 +447,7 @@ describe('salas sem buracos', () => {
     const clock = { now: T0 };
     sim.applySnapshot(snap([room('/c', 8), room('/a', 0), room('/b', 3)], [agent('ana', '/a', 'working'), agent('bia', '/b', 'working'), agent('caio', '/c', 'working')]), clock.now);
     expect(['/a', '/b', '/c'].map((id) => sim.rooms.get(id)!.slot)).toEqual([0, 1, 2]);
-    expect(sim.building.cols).toBe(4);
+    expect(sim.building.floors).toBe(1);
   });
 
   it('terminal fechou: a sala mais distante se muda para a vaga, o pessoal vai andando e o prédio encolhe', () => {
@@ -460,7 +461,7 @@ describe('salas sem buracos', () => {
     const caio = sim.chars.get('caio')!;
     const homeBefore = caio.homeSpot;
     expect(c.slot).toBe(2);
-    expect(sim.building.cols).toBe(4);
+    expect(sim.building.floors).toBe(1);
 
     // a sessão da sala /b fecha: bia vai embora e a sala é desmontada
     sim.applySnapshot(snap([room('/a', 0), room('/c', 2)], [agents[0], agent('bia', '/b', 'offline'), agents[2], agents[3]], 2), clock.now);
@@ -491,10 +492,10 @@ describe('salas sem buracos', () => {
     expect(inside(c, caio)).toBe(true);
     expect(c.phase).toBe('ready');
     expect(c.lightOn).toBe(true);
-    // o endereço antigo esvaziou, apagou e foi desmontado; o prédio voltou a ter uma coluna de salas
+    // o endereço antigo esvaziou, apagou e foi desmontado
     expect(sim.rooms.has(ghost!.id)).toBe(false);
-    run(sim, clock, 10, () => sim.building.cols === 3);
-    expect(sim.building.cols).toBe(3);
+    run(sim, clock, 10, () => sim.rooms.get('/c')!.slot === 1);
+    expect(sim.rooms.get('/c')!.slot).toBe(1);
     // davi (ocioso, talvez passeando) também tem o lugar dele na sala nova
     expect(c.layout.spots.some((p) => p.id === sim.chars.get('davi')!.homeSpot)).toBe(true);
   });
@@ -514,8 +515,8 @@ describe('salas sem buracos', () => {
     });
     expect(moved).toBe(false);
     expect(sim.rooms.has('/c')).toBe(false);
-    run(sim, clock, 5, () => sim.building.cols === 3);
-    expect(sim.building.cols).toBe(3);
+    run(sim, clock, 5, () => sim.building.floors === 1);
+    expect(sim.building.floors).toBe(1);
   });
 
   it('abre e fecha ao acaso (inclusive no meio de uma mudança): ninguém se teletransporta e no fim não sobra buraco', () => {
@@ -573,9 +574,63 @@ describe('salas sem buracos', () => {
     expect([...sim.rooms.keys()].sort()).toEqual([...open.keys()].sort());
     expect(slots).toEqual(slots.map((_, i) => i));
     expect([...sim.rooms.values()].some((r) => r.ghost)).toBe(false);
-    run(sim, clock, 20, () => sim.building.cols === 2 + Math.ceil(open.size / 2));
-    expect(sim.building.cols).toBe(2 + Math.ceil(open.size / 2));
+    run(sim, clock, 20, () => sim.building.floors === Math.max(1, Math.ceil(open.size / ROOMS_PER_FLOOR)));
+    expect(sim.building.floors).toBe(Math.max(1, Math.ceil(open.size / ROOMS_PER_FLOOR)));
     expect(maxStep).toBeLessThan(12);
+  });
+
+  it('passar de ROOMS_PER_FLOOR salas ganha um andar; o térreo desce junto e ninguém se perde', () => {
+    const sim = newSim();
+    const clock = { now: T0 };
+    const n = ROOMS_PER_FLOOR;
+    const ids = Array.from({ length: n + 2 }, (_, i) => `/p${i}`);
+    // primeiro só o que cabe num andar
+    const first = ids.slice(0, n);
+    sim.applySnapshot(
+      snap(first.map((id, i) => room(id, i)), first.map((id, i) => agent(`a${i}`, id, 'working'))),
+      clock.now,
+    );
+    run(sim, clock, 2);
+    expect(sim.building.floors).toBe(1);
+    const yAntes = sim.rooms.get('/p0')!.layout.rect.y;
+
+    // mais duas salas: não cabem, então o prédio ganha um andar
+    sim.applySnapshot(
+      snap(ids.map((id, i) => room(id, i)), ids.map((id, i) => agent(`a${i}`, id, 'working')), 2),
+      clock.now,
+    );
+    run(sim, clock, 2);
+    expect(sim.building.floors).toBe(2);
+    expect(sim.rooms.get(ids[n])!.slot).toBe(n);
+
+    // o térreo foi empurrado para baixo em exatamente um andar (ele fica sempre no pé do prédio)
+    expect(sim.rooms.get('/p0')!.layout.rect.y).toBe(yAntes + FLOOR_H);
+    // e o andar novo está em cima
+    expect(sim.rooms.get(ids[n])!.layout.rect.y).toBeLessThan(sim.rooms.get('/p0')!.layout.rect.y);
+
+    // todo mundo continua dentro da própria sala, com o lugar que tinha
+    run(sim, clock, 30, () => [...sim.chars.values()].every((c) => c.atSpot === c.homeSpot));
+    for (const ch of sim.chars.values()) {
+      const r = sim.rooms.get(ch.roomId);
+      if (!r || !r.present) continue;
+      expect(inside(r, ch), `${ch.id} fora da sala ${ch.roomId}`).toBe(true);
+      expect(sim.building.grid.walkable(ch.tx, ch.ty) || !!ch.atSpot, `${ch.id} fora da grade`).toBe(true);
+    }
+
+    // fecharam as duas: o prédio volta a um andar só e o térreo sobe de volta
+    sim.applySnapshot(
+      snap(first.map((id, i) => room(id, i)), ids.map((id, i) => agent(`a${i}`, id, i < n ? 'working' : 'offline')), 3),
+      clock.now,
+    );
+    run(sim, clock, 400, () => sim.building.floors === 1);
+    expect(sim.building.floors).toBe(1);
+    expect(sim.rooms.get('/p0')!.layout.rect.y).toBe(yAntes);
+    for (const ch of sim.chars.values()) {
+      if (ch.gone || ch.leaving) continue;
+      const r = sim.rooms.get(ch.roomId);
+      if (!r || !r.present) continue;
+      expect(inside(r, ch), `${ch.id} fora da sala depois de encolher`).toBe(true);
+    }
   });
 
   it('sala que abre depois ocupa a primeira vaga livre', () => {

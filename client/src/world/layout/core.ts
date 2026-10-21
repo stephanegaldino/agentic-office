@@ -1,13 +1,29 @@
-// Núcleo do prédio (colunas 0 e 1): recepção com elevadores, banheiros, copa e lounge.
+// Núcleo de um andar (colunas 0 e 1): recepção (térreo) ou hall de elevadores (andares de cima),
+// banheiros, copa e lounge. CADA ANDAR tem o seu núcleo completo, para que ninguém precise trocar
+// de andar só para tomar um café — e para que a vida social aconteça no próprio andar.
 import type { WallStyle } from '../../art/api';
-import { COL_W, NORTH_Y, ROOM_H, SOUTH_Y, TILE } from '../constants';
+import { COL_W, NORTH_DY, ROOM_H, SOUTH_DY, TILE } from '../constants';
 import { AreaBuilder, SEATED_SORT_BIAS } from './builder';
+import { floorY } from './geometry';
 import type { AreaLayout } from './types';
 
+/** Bases dos ids das áreas do núcleo (o id real leva o andar: ver `coreId`). */
 export const RECEPTION_ID = 'core:recepcao';
+export const LOBBY_ID = 'core:hall';
 export const RESTROOM_ID = 'core:banheiros';
 export const CAFE_ID = 'core:copa';
 export const LOUNGE_ID = 'core:lounge';
+
+/** Id da área do núcleo de um andar: `core:copa@2`. */
+export function coreId(base: string, floor: number): string {
+  return `${base}@${floor}`;
+}
+
+/** Base de um id de área do núcleo (sem o andar); devolve o próprio id se não houver andar. */
+export function coreBase(id: string): string {
+  const i = id.indexOf('@');
+  return i < 0 ? id : id.slice(0, i);
+}
 
 /** Paredes do núcleo: tons claros e neutros (frios), com acabamentos diferentes por ambiente. */
 export const CORE_WALLS = {
@@ -16,14 +32,15 @@ export const CORE_WALLS = {
   cafe: { base: '#eef0ee', trim: '#9aa6ad', pattern: 'plain' } satisfies WallStyle,
   cafeSplash: { base: '#d9dcdf', trim: '#8d969e', pattern: 'marble' } satisfies WallStyle,
   lounge: { base: '#e6e2ea', trim: '#8f8aa3', pattern: 'plain' } satisfies WallStyle,
+  lobby: { base: '#e4e7e4', trim: '#9a9a86', pattern: 'wood_panel' } satisfies WallStyle,
   glass: { base: '#cfe6f0', trim: '#9fb9c6', pattern: 'glass' } satisfies WallStyle,
 };
 
 /** Centros (em tiles locais) dos dois elevadores na face norte da recepção. */
 export const ELEVATOR_CX = [3, 6.5] as const;
 
-export function layoutReception(): AreaLayout {
-  const b = new AreaBuilder(RECEPTION_ID, 'reception', { x: 0, y: NORTH_Y, w: COL_W, h: ROOM_H });
+export function layoutReception(floor: number, floors: number): AreaLayout {
+  const b = new AreaBuilder(coreId(RECEPTION_ID, floor), 'reception', { x: 0, y: floorY(floor, floors) + NORTH_DY, w: COL_W, h: ROOM_H }, floor);
   const wall = CORE_WALLS.reception;
   b.floor('marble', 0, 0, 16, 12, 101);
   b.rug(1.5, 2.2, 6.5, 2.6, '#3d5a80', 102);
@@ -36,7 +53,7 @@ export function layoutReception(): AreaLayout {
   ELEVATOR_CX.forEach((cx, i) => {
     b.wall('elevator', cx, undefined, { order: 0.2 + i * 0.1 });
     const lx = Math.floor(cx - 0.5);
-    b.spot('elevator', lx, 2, 'up', { x: b.px(cx), y: b.py(2) + 2, group: `elevator:${i}` });
+    b.spot('elevator', lx, 2, 'up', { x: b.px(cx), y: b.py(2) + 2, group: `elevator:${floor}:${i}` });
   });
   b.wall('sign', 11, undefined, { order: 0.9 });
   b.wall('clock', 8.15, undefined, { order: 0.7 });
@@ -63,16 +80,70 @@ export function layoutReception(): AreaLayout {
   // aberta para o corredor: divisórias de vidro nas pontas
   for (const lx of [1, 2, 3, 12, 13, 14]) b.furn('glass_partition', lx, 11, 'h', { order: 0.15 });
   b.walk(1, 2, 14, 10);
-  b.spot('talk', 6, 9, 'right', { group: 'talk:recepcao', dx: -1 });
-  b.spot('talk', 7, 9, 'left', { group: 'talk:recepcao', dx: 1 });
+  b.spot('talk', 6, 9, 'right', { group: `talk:recepcao:${floor}`, dx: -1 });
+  b.spot('talk', 7, 9, 'left', { group: `talk:recepcao:${floor}`, dx: 1 });
 
   const a = b.build();
   a.shade = undefined;
   return a;
 }
 
-export function layoutRestroom(): AreaLayout {
-  const b = new AreaBuilder(RESTROOM_ID, 'restroom', { x: 0, y: SOUTH_Y, w: COL_W, h: ROOM_H });
+/**
+ * Hall de elevadores dos andares de cima: ocupa a mesma célula da recepção (coluna 0, norte), com
+ * os elevadores nos MESMOS `ELEVATOR_CX`, para o poço ficar alinhado de um andar para o outro.
+ * É por aqui que todo mundo chega e vai embora nos andares de cima.
+ */
+export function layoutLobby(floor: number, floors: number): AreaLayout {
+  const b = new AreaBuilder(coreId(LOBBY_ID, floor), 'lobby', { x: 0, y: floorY(floor, floors) + NORTH_DY, w: COL_W, h: ROOM_H }, floor);
+  const wall = CORE_WALLS.lobby;
+  b.floor('marble', 0, 0, 16, 12, 1101 + floor);
+  b.rug(2.2, 4.2, 5.6, 3.2, '#4a6b7c', 1102 + floor);
+  b.face(0.5, 15, wall);
+  b.cap(0, 0, 0.5, 12, wall);
+  b.cap(15.5, 0, 0.5, 12, wall);
+
+  // elevadores alinhados com os do térreo
+  ELEVATOR_CX.forEach((cx, i) => {
+    b.wall('elevator', cx, undefined, { order: 0.2 + i * 0.1 });
+    const lx = Math.floor(cx - 0.5);
+    b.spot('elevator', lx, 2, 'up', { x: b.px(cx), y: b.py(2) + 2, group: `elevator:${floor}:${i}` });
+  });
+  // placa com o número do andar e relógio
+  b.wall('sign', 10.5, undefined, { order: 0.9 });
+  b.wall('clock', 8.15, undefined, { order: 0.7 });
+  b.wall('painting', 13.5, undefined, { order: 0.6 });
+
+  // plantas altas fora da linha da face (linha 2), para não tapar quadro, placa e relógio
+  b.furn('plant_tall', 1, 2, 'ficus', { order: 0.2 });
+  b.furn('plant_tall', 14, 4, 'palm', { order: 0.21 });
+
+  // espera: banco virado para os elevadores e poltronas com mesinha
+  const bench = b.furn('bench', 11, 5, undefined, { order: 0.5 });
+  for (let i = 0; i < 2; i++) b.seat('bench', 'bench', 11 + i, 5, 'down', undefined, { noFurniture: true, furnitureId: bench });
+  b.furn('plant_small', 13, 5, 'flower', { order: 0.52 });
+  b.seat('armchair', 'armchair', 2, 8, 'right', 'right', { order: 0.6 });
+  b.furn('coffee_table', 3, 8, undefined, { order: 0.58 });
+  b.seat('armchair', 'armchair', 5, 8, 'left', 'left', { order: 0.61 });
+
+  b.furn('water_cooler', 14, 7, undefined, { order: 0.53 });
+  b.spot('water', 14, 8, 'up', { dy: -3 });
+  b.furn('trash_bin', 1, 7, undefined, { order: 0.55 });
+  b.furn('plant_tall', 14, 10, 'monstera', { order: 0.22 });
+  b.furn('plant_small', 1, 10, 'fern', { order: 0.23 });
+
+  // aberto para o corredor: divisórias de vidro nas pontas
+  for (const lx of [1, 2, 3, 12, 13, 14]) b.furn('glass_partition', lx, 11, 'h', { order: 0.15 });
+  b.walk(1, 2, 14, 10);
+  b.spot('talk', 7, 9, 'right', { group: `talk:hall:${floor}`, dx: -1 });
+  b.spot('talk', 8, 9, 'left', { group: `talk:hall:${floor}`, dx: 1 });
+
+  const a = b.build();
+  a.shade = undefined;
+  return a;
+}
+
+export function layoutRestroom(floor: number, floors: number): AreaLayout {
+  const b = new AreaBuilder(coreId(RESTROOM_ID, floor), 'restroom', { x: 0, y: floorY(floor, floors) + SOUTH_DY, w: COL_W, h: ROOM_H }, floor);
   const wall = CORE_WALLS.restroom;
   b.floor('tile_white', 0, 0, 16, 12, 201);
   // tapetinho só na frente das pias (nada de tapete grande no meio do banheiro)
@@ -84,7 +155,7 @@ export function layoutRestroom(): AreaLayout {
   b.cap(15.5, 0, 0.5, 12, wall);
   b.walk(1, 2, 14, 9);
   b.walk(7, 0, 2, 2);
-  b.area.door = { x: 7, y: SOUTH_Y, w: 2, h: 2 };
+  b.area.door = { x: 7, y: b.y0, w: 2, h: 2 };
 
   // pias com espelho
   for (let i = 0; i < 3; i++) {
@@ -115,8 +186,8 @@ export function layoutRestroom(): AreaLayout {
   return b.build();
 }
 
-export function layoutCafe(): AreaLayout {
-  const b = new AreaBuilder(CAFE_ID, 'cafe', { x: COL_W, y: NORTH_Y, w: COL_W, h: ROOM_H });
+export function layoutCafe(floor: number, floors: number): AreaLayout {
+  const b = new AreaBuilder(coreId(CAFE_ID, floor), 'cafe', { x: COL_W, y: floorY(floor, floors) + NORTH_DY, w: COL_W, h: ROOM_H }, floor);
   const wall = CORE_WALLS.cafe;
   b.floor('tile_check', 0, 0, 16, 12, 301);
   // frontão de mármore atrás da bancada + parede clara com janelas
@@ -180,14 +251,14 @@ export function layoutCafe(): AreaLayout {
   // aberta para o corredor com vidro
   for (const lx of [1, 2, 3, 4, 5, 10, 11, 12, 13, 14]) b.furn('glass_partition', lx, 11, 'h', { order: 0.15 });
   b.walk(1, 2, 14, 10);
-  b.spot('talk', 7, 9, 'right', { group: 'talk:copa', dx: -1 });
-  b.spot('talk', 8, 9, 'left', { group: 'talk:copa', dx: 1 });
+  b.spot('talk', 7, 9, 'right', { group: `talk:copa:${floor}`, dx: -1 });
+  b.spot('talk', 8, 9, 'left', { group: `talk:copa:${floor}`, dx: 1 });
   b.area.shade = undefined;
   return b.build();
 }
 
-export function layoutLounge(): AreaLayout {
-  const b = new AreaBuilder(LOUNGE_ID, 'lounge', { x: COL_W, y: SOUTH_Y, w: COL_W, h: ROOM_H });
+export function layoutLounge(floor: number, floors: number): AreaLayout {
+  const b = new AreaBuilder(coreId(LOUNGE_ID, floor), 'lounge', { x: COL_W, y: floorY(floor, floors) + SOUTH_DY, w: COL_W, h: ROOM_H }, floor);
   const wall = CORE_WALLS.lounge;
   b.floor('wood', 0, 0, 16, 12, 401);
   b.rug(1.5, 3.2, 7, 5.2, '#4f8a5b', 402);
@@ -200,7 +271,7 @@ export function layoutLounge(): AreaLayout {
   b.cap(15.5, 0, 0.5, 12, wall);
   b.walk(1, 2, 14, 9);
   b.walk(7, 0, 3, 2);
-  b.area.door = { x: COL_W + 7, y: SOUTH_Y, w: 3, h: 2 };
+  b.area.door = { x: COL_W + 7, y: b.y0, w: 3, h: 2 };
 
   b.wall('tv', 4.5, undefined, { order: 0.4 });
   b.wall('painting', 1.75, undefined, { order: 0.5 });
@@ -217,8 +288,8 @@ export function layoutLounge(): AreaLayout {
   b.furn('pingpong_table', 10, 6, undefined, { order: 0.4 });
   const ppY = b.py(7) + 5;
   const ppSort = b.py(8) + SEATED_SORT_BIAS;
-  b.spot('pingpong', 9, 7, 'right', { x: b.px(10) - 8, y: ppY, group: 'pingpong', sortY: ppSort });
-  b.spot('pingpong', 13, 7, 'left', { x: b.px(13) + 8, y: ppY, group: 'pingpong', sortY: ppSort });
+  b.spot('pingpong', 9, 7, 'right', { x: b.px(10) - 8, y: ppY, group: `pingpong:${floor}`, sortY: ppSort });
+  b.spot('pingpong', 13, 7, 'left', { x: b.px(13) + 8, y: ppY, group: `pingpong:${floor}`, sortY: ppSort });
 
   // fliperamas e estantes
   for (const lx of [13, 14]) {
@@ -239,10 +310,10 @@ export function layoutLounge(): AreaLayout {
   (['red', 'blue', 'yellow'] as const).forEach((c, i) => {
     b.seat('beanbag', 'beanbag', 6 + i * 2, 9, 'down', c, { order: 0.6 + i * 0.02 });
   });
-  b.spot('talk', 11, 9, 'right', { group: 'talk:lounge', dx: -1 });
-  b.spot('talk', 12, 9, 'left', { group: 'talk:lounge', dx: 1 });
+  b.spot('talk', 11, 9, 'right', { group: `talk:lounge:${floor}`, dx: -1 });
+  b.spot('talk', 12, 9, 'left', { group: `talk:lounge:${floor}`, dx: 1 });
   // torcida do ping-pong: atrás da mesa, de frente para a câmera
-  b.spot('watch', 10, 5, 'down', { group: 'watch:pingpong', dx: 2 });
-  b.spot('watch', 12, 5, 'down', { group: 'watch:pingpong', dx: -2 });
+  b.spot('watch', 10, 5, 'down', { group: `watch:pingpong:${floor}`, dx: 2 });
+  b.spot('watch', 12, 5, 'down', { group: `watch:pingpong:${floor}`, dx: -2 });
   return b.build();
 }

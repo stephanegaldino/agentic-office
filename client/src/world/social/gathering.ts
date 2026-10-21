@@ -63,6 +63,8 @@ export interface Member {
 export interface Gathering {
   id: number;
   kind: GatherKind;
+  /** Andar em que a roda acontece: todos os participantes e lugares são dele. */
+  floor: number;
   host: string;
   members: Member[];
   /** gather: indo para os lugares; run: rolando; final: comemoração/despedida; ended: acabou. */

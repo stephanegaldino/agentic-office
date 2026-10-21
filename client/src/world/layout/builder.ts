@@ -29,8 +29,8 @@ export class AreaBuilder {
   readonly area: AreaLayout;
   private seq = 0;
 
-  constructor(id: string, kind: AreaKind, rect: TileRect) {
-    this.area = { id, kind, rect, floors: [], rugs: [], walls: [], wallItems: [], furniture: [], spots: [], walkable: [] };
+  constructor(id: string, kind: AreaKind, rect: TileRect, floor = 0) {
+    this.area = { id, kind, floor, rect, floors: [], rugs: [], walls: [], wallItems: [], furniture: [], spots: [], walkable: [] };
   }
 
   get x0(): number {
@@ -121,6 +121,7 @@ export class AreaBuilder {
       id: `${this.area.id}#s${this.seq++}:${kind}`,
       kind,
       areaId: this.area.id,
+      floor: this.area.floor,
       tx,
       ty,
       x: opts.x ?? tx * TILE + FOOT_DX + (opts.dx ?? 0),

@@ -9,13 +9,30 @@ export const COL_W = 16;
 export const ROOM_H = 12;
 /** Altura do corredor que corta o prédio de leste a oeste. */
 export const CORRIDOR_H = 5;
-/** Colunas do núcleo (recepção/banheiros e copa/lounge). */
+/** Colunas do núcleo (recepção ou hall de elevadores + banheiros, e copa + lounge). */
 export const CORE_COLS = 2;
+/** Colunas de projeto por andar: depois destas, o prédio ganha um andar em vez de esticar. */
+export const PROJECT_COLS_PER_FLOOR = 4;
+/** Salas de projeto por andar (duas por coluna: norte e sul do corredor). */
+export const ROOMS_PER_FLOOR = PROJECT_COLS_PER_FLOOR * 2;
+/** Largura fixa do prédio em colunas (o núcleo de cada andar + as colunas de projeto). */
+export const TOTAL_COLS = CORE_COLS + PROJECT_COLS_PER_FLOOR;
 
-export const NORTH_Y = 0;
-export const CORRIDOR_Y = ROOM_H;
-export const SOUTH_Y = ROOM_H + CORRIDOR_H;
-export const BUILDING_H = ROOM_H * 2 + CORRIDOR_H;
+/** Altura de um andar: sala ao norte + corredor + sala ao sul. */
+export const FLOOR_H = ROOM_H * 2 + CORRIDOR_H;
+
+/**
+ * Deslocamentos DENTRO de um andar (somar ao `floorY(andar, andares)` para obter o y absoluto).
+ * O térreo fica sempre embaixo, colado na calçada; os andares de cima empilham para o topo.
+ */
+export const NORTH_DY = 0;
+export const CORRIDOR_DY = ROOM_H;
+export const SOUTH_DY = ROOM_H + CORRIDOR_H;
+
+/** Altura total do prédio para um número de andares. */
+export function buildingH(floors: number): number {
+  return Math.max(1, floors) * FLOOR_H;
+}
 
 /** Primeira coluna (local) da porta de 2 tiles das salas. */
 export const DOOR_X = 7;
