@@ -1,11 +1,20 @@
 {
   "name": "habblaud-mensagens",
-  "displayName": "Habblaud: mensagens pelo escritório",
+  "displayName": "Agentic Office: mensagens pelo escritório",
   "version": "1.0.3",
-  "description": "Leva para a sessão do Claude Code as mensagens que você digita no Habblaud (painel do agente ou terminal), como se você as tivesse digitado no terminal.",
-  "author": { "name": "Márcio Junior", "url": "https://github.com/marmottajr" },
-  "homepage": "https://github.com/marmottajr/habblaud#readme",
-  "repository": "https://github.com/marmottajr/habblaud",
+  "description": "Leva para a sessão do Claude Code as mensagens que você digita no Agentic Office (painel do agente ou terminal), como se você as tivesse digitado no terminal.",
+  "author": {
+    "name": "Stephane Galdino",
+    "url": "https://github.com/stephanegaldino"
+  },
+  "homepage": "https://github.com/stephanegaldino/agentic-office#readme",
+  "repository": "https://github.com/stephanegaldino/agentic-office",
   "license": "MIT",
-  "keywords": ["habblaud", "escritorio", "mensagens", "prompt"]
+  "keywords": [
+    "habblaud",
+    "agentic-office",
+    "escritorio",
+    "mensagens",
+    "prompt"
+  ]
 }

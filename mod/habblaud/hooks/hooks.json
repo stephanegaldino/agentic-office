@@ -1,4 +1,4 @@
 {
-  "description": "Módulo de hooks do mod do Habblaud (uso do plano, aviso embaixo do prompt e /habblaud)",
+  "description": "Módulo de hooks do mod do Agentic Office (uso do plano, aviso embaixo do prompt e /office)",
   "modules": ["./register.ts"]
 }

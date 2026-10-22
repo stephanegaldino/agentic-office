@@ -12,7 +12,7 @@
 //    local (GET /api/mod/summary, que já tira da lista esta sessão e os subagentes dela). Fora do ar, a
 //    linha some e as perguntas passam a ser a cada 30 s até ele voltar. Só onde a sessão desenha
 //    (`$.session.surfaces()` vazia = `claude -p`/SDK: nada a mostrar, nada a perguntar).
-// 3. /habblaud: resumo do escritório, respondido pelo próprio mod (não chama o modelo, não gasta uso).
+// 3. /office: resumo do escritório, respondido pelo próprio mod (não chama o modelo, não gasta uso).
 //
 // Regras: nenhum hook lança (um hook que lança é pulado, mas o que ele deixou pela metade fica): cada
 // passo tem seu try/catch e falha = silêncio. Nada de $.process, $.model, $.prompt, decisão de
@@ -83,7 +83,7 @@ interface ModEnv {
 }
 
 // ---------------------------------------------------------------------------------------------
-// Funções puras (testadas em tests/habblaud.test.ts)
+// Funções puras (testadas em tests/office.test.ts)
 // ---------------------------------------------------------------------------------------------
 
 /**
@@ -225,21 +225,21 @@ export function statusText(waiting: readonly WaitingAgent[]): string | undefined
   return `🏢 ${waiting.length} precisam de você: ${shown.join(', ')}${rest > 0 ? ` e mais ${rest}` : ''}`
 }
 
-/** A resposta do /habblaud com o Habblaud no ar. */
+/** A resposta do /office com o Habblaud no ar. */
 export function summaryText(s: Summary, url: string): string {
   const agents = s.agents === 1 ? '1 agente' : `${s.agents} agentes`
   const waiting = s.waiting.length === 0 ? 'ninguém precisa de você' : s.waiting.length === 1 ? '1 precisa de você' : `${s.waiting.length} precisam de você`
-  const lines = [`Habblaud ${s.version} em ${url}`, `${agents} · ${s.working} trabalhando · ${waiting}`]
+  const lines = [`Agentic Office ${s.version} em ${url}`, `${agents} · ${s.working} trabalhando · ${waiting}`]
   for (const w of s.waiting) lines.push(`✋ ${w.name} (${w.room}): ${w.waitingFor}${w.answerable ? ' · dá para responder pelo escritório' : ''}`)
   return lines.join('\n')
 }
 
 export function offlineText(url: string): string {
-  return `O Habblaud não respondeu em ${url}. Para subir: npm run docker:up na pasta do Habblaud.`
+  return `O Agentic Office não respondeu em ${url}. Para subir: npm run docker:up na pasta do Agentic Office.`
 }
 
 export function outdatedText(url: string): string {
-  return `O Habblaud em ${url} está numa versão sem a rota do mod. Para atualizar: git pull e npm run docker:up na pasta do Habblaud.`
+  return `O Agentic Office em ${url} está numa versão sem a rota do mod. Para atualizar: git pull e npm run docker:up na pasta do Agentic Office.`
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -358,7 +358,7 @@ async function poll($: EngineInterface): Promise<void> {
   }
 }
 
-/** O texto do /habblaud: o escritório inteiro (sem filtrar esta sessão, para os números baterem com a tela). */
+/** O texto do /office: o escritório inteiro (sem filtrar esta sessão, para os números baterem com a tela). */
 async function habblaudText($: EngineInterface): Promise<string> {
   const e = await readEnv($)
   const url = `http://localhost:${e.port}`
@@ -371,7 +371,7 @@ async function habblaudText($: EngineInterface): Promise<string> {
 export const register: Register = (on) => {
   on('session.start', async ($, e, next) => {
     try {
-      await $.command.register({ name: 'habblaud', description: 'Resumo do Habblaud: quantos agentes, quem trabalha e quem precisa de você' })
+      await $.command.register({ name: 'office', description: 'Resumo do Agentic Office: quantos agentes, quem trabalha e quem precisa de você' })
     } catch {
       // sem o comando, o resto segue
     }
@@ -400,7 +400,7 @@ export const register: Register = (on) => {
     return next(e)
   })
 
-  on('command.run', { command: 'habblaud' }, async ($) => {
+  on('command.run', { command: 'office' }, async ($) => {
     try {
       return { text: await habblaudText($) }
     } catch {

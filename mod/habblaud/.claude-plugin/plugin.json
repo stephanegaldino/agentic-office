@@ -1,11 +1,21 @@
 {
   "name": "habblaud",
-  "displayName": "Habblaud",
+  "displayName": "Agentic Office",
   "version": "1.0.3",
-  "description": "Liga a sessão ao Habblaud: grava o uso do plano (5h e semanal) para o escritório, avisa embaixo do prompt quando outra sessão precisa de você e adiciona o comando /habblaud.",
-  "author": { "name": "Márcio Junior", "url": "https://github.com/marmottajr" },
-  "homepage": "https://github.com/marmottajr/habblaud#readme",
-  "repository": "https://github.com/marmottajr/habblaud",
+  "description": "Liga a sessão ao Agentic Office: grava o uso do plano (5h e semanal) para o escritório, avisa embaixo do prompt quando outra sessão precisa de você e adiciona o comando /office.",
+  "author": {
+    "name": "Stephane Galdino",
+    "url": "https://github.com/stephanegaldino"
+  },
+  "homepage": "https://github.com/stephanegaldino/agentic-office#readme",
+  "repository": "https://github.com/stephanegaldino/agentic-office",
   "license": "MIT",
-  "keywords": ["habblaud", "escritorio", "uso", "rate-limits", "status"]
+  "keywords": [
+    "habblaud",
+    "agentic-office",
+    "escritorio",
+    "uso",
+    "rate-limits",
+    "status"
+  ]
 }

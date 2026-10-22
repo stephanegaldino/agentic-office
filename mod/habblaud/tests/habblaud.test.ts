@@ -1,4 +1,4 @@
-// Testes do mod do Habblaud, rodados pelo próprio Claude Code: `claude plugin test` dentro de mod/habblaud
+// Testes do mod do Agentic Office, rodados pelo próprio Claude Code: `claude plugin test` dentro de mod/habblaud
 // (sem sessão, sem login, sem rede). Os stubs respondem no lugar do Claude Code: env, relógio
 // (mock.clock), $.session.usage, $.session.id, $.session.surfaces, $.fs.write, $.http.fetch e $.ui.status.
 import type { CommandRunInput, HttpResponse, On, SessionRateLimit } from 'claude-code'
@@ -30,7 +30,7 @@ interface World {
   env?: Record<string, string>
   limits?: SessionRateLimit[]
   surfaces?: ReadonlyArray<'terminal' | 'desktop'>
-  /** Resposta do Habblaud: um resumo, 'offline' (conexão recusada), 'hang' (não responde) ou um HTTP cru. */
+  /** Resposta do Agentic Office: um resumo, 'offline' (conexão recusada), 'hang' (não responde) ou um HTTP cru. */
   answer?: () => Summary | 'offline' | 'hang' | { status: number; text: string }
   /** $.fs.write falha (pasta sem permissão, disco cheio...). */
   writeFails?: boolean
@@ -76,8 +76,8 @@ function world(on: On, w: World = {}) {
 }
 
 const START = { cwd: '/work', surface: 'terminal', isInteractive: true } as const
-/** /habblaud digitado no terminal (o kit pede a origem e onde a resposta aparece). */
-const RUN: CommandRunInput = { command: 'habblaud', args: '', origin: { kind: 'composer' }, presentation: { isFullscreen: false, columns: 120 } }
+/** /office digitado no terminal (o kit pede a origem e onde a resposta aparece). */
+const RUN: CommandRunInput = { command: 'office', args: '', origin: { kind: 'composer' }, presentation: { isFullscreen: false, columns: 120 } }
 
 function response(status: number, text: string): HttpResponse {
   return { status, ok: status >= 200 && status < 300, headers: { 'content-type': 'application/json' }, text }
@@ -87,7 +87,7 @@ describe('uso do plano', () => {
   test('session.start grava o arquivo no formato do tap, com source "mod"', async ($, on) => {
     const w = world(on)
     await $.session.start(START)
-    expect(w.commands).toEqual(['habblaud'])
+    expect(w.commands).toEqual(['office'])
     expect(w.writes.length).toBe(1)
     // O kit passa o caminho gravado pelo path da máquina que roda o teste (no Windows, C:\home\...): sem o drive.
     expect(w.writes[0]?.path.replace(/\\/g, '/').replace(/^[A-Za-z]:/, '')).toBe('/home/fulano/.habblaud/usage/.claude-conta2.json')
@@ -146,7 +146,7 @@ describe('uso do plano', () => {
     const w = world(on, { writeFails: true })
     expect(await $.session.start(START)).toEqual({ cwd: '/work' })
     expect(await $.session.measure({ context: CONTEXT, rateLimits: LIMITS, changed: ['rateLimits'] })).toEqual({ changed: ['rateLimits'] })
-    expect(w.commands).toEqual(['habblaud'])
+    expect(w.commands).toEqual(['office'])
     expect(w.writes).toEqual([])
   })
 })
@@ -177,7 +177,7 @@ describe('linha embaixo do prompt', () => {
     expect(w.statuses.length).toBe(5)
   })
 
-  test('Habblaud fora do ar: limpa a linha e recua para 30 s até voltar', async ($, on) => {
+  test('Agentic Office fora do ar: limpa a linha e recua para 30 s até voltar', async ($, on) => {
     let up = false
     const w = world(on, { answer: () => (up ? summary([waiting('Valentina', 'loja-virtual')]) : 'offline') })
     await $.session.start(START)
@@ -194,7 +194,7 @@ describe('linha embaixo do prompt', () => {
     expect(w.fetches.length).toBe(3)
   })
 
-  test('Habblaud travado: desiste depois de 2 s e limpa a linha', async ($, on) => {
+  test('Agentic Office travado: desiste depois de 2 s e limpa a linha', async ($, on) => {
     let hang = false
     const w = world(on, { answer: () => (hang ? 'hang' : summary([waiting('Valentina', 'loja-virtual')])) })
     await $.session.start(START)
@@ -207,7 +207,7 @@ describe('linha embaixo do prompt', () => {
     expect(w.statuses).toEqual(['🏢 Valentina precisa de você em loja-virtual', undefined])
   })
 
-  test('sessão sem superfície (claude -p, SDK): nem pergunta ao Habblaud', async ($, on) => {
+  test('sessão sem superfície (claude -p, SDK): nem pergunta ao Agentic Office', async ($, on) => {
     const w = world(on, { surfaces: [] })
     await $.session.start({ cwd: '/work', surface: null, isInteractive: false })
     await w.clock.advance(15_000)
@@ -216,7 +216,7 @@ describe('linha embaixo do prompt', () => {
   })
 })
 
-describe('/habblaud', () => {
+describe('/office', () => {
   test('no ar: versão, endereço, contagem e uma linha por quem espera (o escritório inteiro)', async ($, on) => {
     const w = world(on, {
       answer: () => summary([waiting('Valentina', 'loja-virtual', { answerable: true }), waiting('Elias', 'app-mobile', { waitingFor: 'responder no terminal' })]),
@@ -225,7 +225,7 @@ describe('/habblaud', () => {
     expect(w.fetches).toEqual([SUMMARY_URL])
     expect(out.text).toBe(
       [
-        'Habblaud 0.3.0 em http://localhost:4850',
+        'Agentic Office 0.3.0 em http://localhost:4850',
         '7 agentes · 3 trabalhando · 2 precisam de você',
         '✋ Valentina (loja-virtual): aprovar uma permissão · dá para responder pelo escritório',
         '✋ Elias (app-mobile): responder no terminal',
@@ -236,19 +236,19 @@ describe('/habblaud', () => {
   test('no ar e ninguém esperando', async ($, on) => {
     world(on, { answer: () => summary([], { agents: 1, working: 0 }) })
     const out = await $.command.run(RUN)
-    expect(out.text).toBe('Habblaud 0.3.0 em http://localhost:4850\n1 agente · 0 trabalhando · ninguém precisa de você')
+    expect(out.text).toBe('Agentic Office 0.3.0 em http://localhost:4850\n1 agente · 0 trabalhando · ninguém precisa de você')
   })
 
   test('fora do ar: diz como subir', async ($, on) => {
     world(on, { answer: () => 'offline' })
     const out = await $.command.run(RUN)
-    expect(out.text).toBe('O Habblaud não respondeu em http://localhost:4850. Para subir: npm run docker:up na pasta do Habblaud.')
+    expect(out.text).toBe('O Agentic Office não respondeu em http://localhost:4850. Para subir: npm run docker:up na pasta do Agentic Office.')
   })
 
-  test('Habblaud de antes do mod (404 "rota desconhecida"): pede para atualizar', async ($, on) => {
+  test('Agentic Office de antes do mod (404 "rota desconhecida"): pede para atualizar', async ($, on) => {
     world(on, { env: { HOME: '/home/fulano' }, answer: () => ({ status: 404, text: '{"error":"rota desconhecida"}' }) })
     const out = await $.command.run(RUN)
-    expect(out.text).toMatch(/^O Habblaud em http:\/\/localhost:4747 está numa versão sem a rota do mod/)
+    expect(out.text).toMatch(/^O Agentic Office em http:\/\/localhost:4747 está numa versão sem a rota do mod/)
   })
 })
 
