@@ -1,6 +1,6 @@
 """Pixel art desenhada à mão (mapas de caracteres) para os tamanhos em que a redução automática
 da arte da IA não fica nítida: o mark em 32x32 e 16x16 ("hinting" do desenho da IA, com a mesma
-paleta) e a placa "Habblaud" e textos do og-image com uma fonte bitmap proporcional (5x7, com acentos).
+paleta) e a placa "Agentic Office" e textos do og-image com uma fonte bitmap proporcional (5x7, com acentos).
 
 O desenho de referência é a tomada escolhida de `logo-mark` (prédio frontal, telhado verde-azulado,
 faixas de madeira, janelas acesas em amarelo e duas telas azuis, porta de vidro com toldo).
@@ -259,8 +259,8 @@ def text_image(text: str, color: str, scale: int = 1, shadow: str | None = None)
 
 
 def signage() -> Image.Image:
-    """Placa da recepção, 64x16: chapa azul-marinho com bisel, parafusos e "Habblaud"."""
-    w, h = 64, 16
+    """Placa da recepção, 80x16: chapa azul-marinho com bisel, parafusos e "Agentic Office"."""
+    w, h = 80, 16
     img = Image.new("RGBA", (w, h), (0, 0, 0, 0))
     px = img.load()
     outline, top, face, bottom = hex_rgba("#1c2541"), hex_rgba("#3a4a70"), hex_rgba("#2a3656"), hex_rgba("#222b47")
@@ -276,16 +276,16 @@ def signage() -> Image.Image:
                 px[x, y] = bottom
             else:
                 px[x, y] = face
-    for sx in (3, w - 4):  # parafusos
+    for sx in (2, w - 3):  # parafusos, fora da faixa do texto (x 4..75)
         px[sx, 7] = hex_rgba("#c9d3e3")
         px[sx, 8] = hex_rgba("#7d8aa3")
-    # texto centralizado com sombra de 1px; "Hab" claro e "blaud" na cor das janelas acesas
-    tx, ty = (w - text_width("Habblaud")) // 2, 4
-    blaud_x = tx + text_width("Hab") + 1
-    draw_text(img, tx, ty + 1, "Hab", "#151c33")
-    draw_text(img, blaud_x, ty + 1, "blaud", "#151c33")
-    draw_text(img, tx, ty, "Hab", "#f4f1ea")
-    draw_text(img, blaud_x, ty, "blaud", "#fac665")
+    # texto centralizado com sombra de 1px; "Agentic" claro e "Office" na cor das janelas acesas
+    tx, ty = (w - text_width("Agentic Office")) // 2, 4
+    office_x = tx + text_width("Agentic ") + 1
+    draw_text(img, tx, ty + 1, "Agentic", "#151c33")
+    draw_text(img, office_x, ty + 1, "Office", "#151c33")
+    draw_text(img, tx, ty, "Agentic", "#f4f1ea")
+    draw_text(img, office_x, ty, "Office", "#fac665")
     return img
 
 

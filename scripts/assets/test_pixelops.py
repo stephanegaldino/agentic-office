@@ -85,5 +85,13 @@ class FontTest(unittest.TestCase):
         self.assertIsInstance(pixelart.signage(), Image.Image)
 
 
+class SignageTest(unittest.TestCase):
+    def test_signage_cabe_na_placa_do_renderer(self):
+        img = pixelart.signage()
+        self.assertEqual((img.width, img.height), (80, 16))
+        # o texto inteiro cabe entre os parafusos
+        self.assertLessEqual(pixelart.text_width("Agentic Office") + 2 * 4, img.width)
+
+
 if __name__ == "__main__":
     unittest.main()

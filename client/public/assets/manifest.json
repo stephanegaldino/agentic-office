@@ -13,12 +13,12 @@
     },
     "signage": {
       "file": "brand/signage.png",
-      "w": 64,
+      "w": 80,
       "h": 16
     },
     "signageLarge": {
       "file": "brand/signage@4x.png",
-      "w": 256,
+      "w": 320,
       "h": 64
     },
     "favicon16": "brand/favicon-16.png",
