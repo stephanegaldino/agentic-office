@@ -58,10 +58,15 @@ const CORE_NAMES: Record<string, string> = {
 };
 
 /** Rótulo da pílula de uma área do núcleo: nos andares de cima, com o número do andar. */
-function coreLabel(id: string, floor: number): string | null {
+export function coreLabel(id: string, floor: number): string | null {
   const name = CORE_NAMES[coreBase(id)];
   if (!name) return null;
-  return floor === 0 ? name : `${name} · ${floor + 1}º`;
+  return floor === 0 ? name : tr('{0} · {1}º', [name, floor + 1]);
+}
+
+/** Placa do lobby dos elevadores de um andar de cima (o térreo tem a marca). */
+export function lobbyLabel(floor: number): string {
+  return tr('{0}º andar', [floor + 1]);
 }
 
 /** 'shell' = espera de shell: balão escuro de terminal com texto verde. 'say' = fala das rodas (papo, torcida, apostas). */
@@ -439,7 +444,7 @@ export class Overlay {
         : vis.layout.kind === 'reception'
           ? BRAND
           : vis.layout.kind === 'lobby'
-            ? `${vis.layout.floor + 1}º andar`
+            ? lobbyLabel(vis.layout.floor)
             : null;
       const readable = !!rect && rect.h * zoom >= SIGN_MIN_PX;
       if (readable && rect && text && (!anim || anim.sign >= 1)) {

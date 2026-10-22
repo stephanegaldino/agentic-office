@@ -350,8 +350,8 @@ npm run docker:up        # tira o container codetown e copia os dados do volume 
 - **Navegador:** las preferencias y las monedas pasan a las claves nuevas la primera vez que se abre la página.
 - **Variables:** las `CODETOWN_*` ya no funcionan; renómbralas a `HABBLAUD_*` en el `.env` (p. ej., `HABBLAUD_BIND`). El
   servidor y `docker:up` avisan cuando encuentran una antigua.
-- **Repositorio:** ahora es `github.com/stephanegaldino/agentic-office` (GitHub redirige la dirección antigua). Para ajustar el
-  clon: `git remote set-url origin https://github.com/stephanegaldino/agentic-office.git`. La carpeta local puede seguir con el
+- **Repositorio:** ahora es `github.com/marmottajr/habblaud` (GitHub redirige la dirección antigua). Para ajustar el
+  clon: `git remote set-url origin https://github.com/marmottajr/habblaud.git`. La carpeta local puede seguir con el
   nombre antiguo.
 - Las copias de seguridad del `settings.json` hechas antes del cambio conservan el nombre
   `settings.json.codetown-backup-<data>`.

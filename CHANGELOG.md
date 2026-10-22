@@ -17,6 +17,8 @@ do meio (0.**3**.0).
   ids dos plugins e nomes do Docker continuam os mesmos; o Habblaud World mantém o nome.
 - **Comando:** `/habblaud` vira `/office`.
 - **Andares:** o prédio cresce em andares (recepção no térreo, lobbies "Nº andar") em vez de crescer para o lado.
+- **Andares, correções do porte para a 1.0.3:** a placa da recepção e o quadro de carimbos da cena Visita voltam a aparecer (as
+  áreas do núcleo levam o andar no id); os rótulos "Nº andar" passam pelo `tr()` e ganham tradução.
 
 ## [1.0.3] - 2026-10-16
 

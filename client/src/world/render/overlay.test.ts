@@ -1,7 +1,8 @@
 // Regras puras da camada de texto do mundo (balões e enquadramento).
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
+import { setLocale } from '../../../../shared/i18n';
 import { overviewFrame } from '../camera';
-import { rationBubbles, waitBubbleText } from './overlay';
+import { coreLabel, lobbyLabel, rationBubbles, waitBubbleText } from './overlay';
 
 describe('balões', () => {
   it('espera: só o motivo, sem o prefixo redundante', () => {
@@ -42,5 +43,23 @@ describe('visão geral', () => {
     // começa acima da parede norte (placas) e termina abaixo da fachada sul
     expect(ui.cy).toBeGreaterThan(building.h / 2);
     expect(ui.dy).toBeGreaterThan(0);
+  });
+});
+
+describe('rótulos dos andares', () => {
+  afterEach(() => setLocale('pt-BR'));
+
+  it('térreo: só o nome; andares de cima: nome e número do andar', () => {
+    expect(coreLabel('core:copa@0', 0)).toBe('Copa');
+    expect(coreLabel('core:copa@1', 1)).toBe('Copa · 2º');
+    expect(coreLabel('core:desconhecido@1', 1)).toBeNull();
+    expect(lobbyLabel(1)).toBe('2º andar');
+  });
+
+  it('os rótulos passam pelo tr(): em inglês não sobra "º andar"', () => {
+    setLocale('en');
+    // CORE_NAMES é traduzido ao carregar o módulo (no navegador o idioma já está definido); só o andar muda aqui.
+    expect(coreLabel('core:copa@1', 1)).toMatch(/ · floor 2$/);
+    expect(lobbyLabel(2)).toBe('Floor 3');
   });
 });

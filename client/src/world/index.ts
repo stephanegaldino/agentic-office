@@ -8,7 +8,7 @@ import { loadWorldAssets, type WorldAssets } from './assets';
 import { Camera, overviewFrame } from './camera';
 import { createDebug, type WorldDebug } from './debug';
 import { COL_W, buildingH } from './constants';
-import { RECEPTION_ID } from './layout/core';
+import { RECEPTION_ID, coreId } from './layout/core';
 import { inRect } from './layout/geometry';
 import { attachInput, type Hit } from './input';
 import type { AgentInfo } from '../../../shared/types';
@@ -507,7 +507,7 @@ export function createWorld(canvas: HTMLCanvasElement, store: OfficeStore, o: Cr
         return p;
       },
       boardScreen: () => {
-        const r = visitMode ? renderer.paintingRect(RECEPTION_ID) : null;
+        const r = visitMode ? renderer.paintingRect(coreId(RECEPTION_ID, 0)) : null;
         if (!r) return null;
         const a = camera.worldToScreen(r.x, r.y);
         const b = camera.worldToScreen(r.x + r.w, r.y + r.h);

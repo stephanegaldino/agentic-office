@@ -530,12 +530,12 @@ O repositório é também um marketplace de plugins do Claude Code (`.claude-plu
   `statusline`. O mod escreve com `$.fs.write`, que não é atômico; por isso `StatuslineUsageReader` ignora uma
   leitura vazia ou pela metade, fica com o último registro bom daquele arquivo e o relê no ciclo seguinte;
 - **`GET /api/mod/summary`** (`modSummary` em `http/app.ts`), perguntado a cada 5 s por sessão que desenha (30 s com
-  o Habblaud fora do ar) e pelo comando `/habblaud`: só contagens e quem espera, montado do snapshot atual. Ficam de
+  o Habblaud fora do ar) e pelo comando `/office`: só contagens e quem espera, montado do snapshot atual. Ficam de
   fora os agentes do demo (que vivem só no snapshot, não no `Office`), quem já encerrou ou entregou e, com
   `?session=` (e `?account=`, se vier), a sessão de quem pergunta: o principal com esse `sessionId` e os subagentes
   dela (o `sessionId` deles é o da sessão que os disparou; por garantia, também quem tem um ancestral dela).
   `answerable` = há pedido de permissão para responder pelo escritório (`AgentInfo.permission`). Sem parâmetros,
-  nada é excluído (é o que o `/habblaud` usa, para os números baterem com a tela). Só `GET`/`HEAD` (senão 405).
+  nada é excluído (é o que o `/office` usa, para os números baterem com a tela). Só `GET`/`HEAD` (senão 405).
 
 ## Estrutura
 
