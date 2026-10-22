@@ -947,6 +947,8 @@ export const ES: Readonly<Record<string, string>> = {
   "Banheiros": "Baños",
   "Copa": "Cocina",
   "Lounge": "Salón",
+  "Elevadores": "Ascensores",
+  "Hall": "Hall",
 
   // client/src/world/sim/shell.ts
   "Monitorando um processo": "Vigilando un proceso",

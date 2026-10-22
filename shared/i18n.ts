@@ -7,6 +7,7 @@
 // - servidor: HABBLAUD_LANG, senão o idioma do sistema (LC_ALL / LC_MESSAGES / LANG / Intl), menos o inglês (ver
 //   serverLocale).
 // Os textos de atividade são montados pelo servidor, então seguem o idioma do servidor.
+import { brand } from './brand';
 import { DICTIONARIES } from './locales/all';
 
 export type Locale = 'pt-BR' | 'en' | 'es' | 'fr';
@@ -106,7 +107,7 @@ export function setLocale(l: Locale): void {
  */
 export function tr(src: string, args?: readonly unknown[]): string {
   const dict = DICTS[current];
-  const s = (dict && dict[src]) || src;
+  const s = brand((dict && dict[src]) || src);
   if (!args || args.length === 0) return s;
   return s.replace(/\{(\d+)\}/g, (m, i: string) => (Number(i) < args.length ? String(args[Number(i)]) : m));
 }

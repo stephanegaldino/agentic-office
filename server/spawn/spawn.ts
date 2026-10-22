@@ -15,6 +15,7 @@ import { execFile } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
 import { statSync } from 'node:fs';
 import { isAbsolute } from 'node:path';
+import { BRAND } from '../../shared/brand';
 import { tr } from '../../shared/i18n';
 import { attachmentsRoot, promptWithAttachments, writeAttachments, type Attachment, type AttachmentStore } from './attachments';
 
@@ -88,11 +89,11 @@ export function spawnUrl(req: SpawnRequest): string {
   return `claude://code/new?${q.toString().replace(/\+/g, '%20')}`;
 }
 
-/** Nome da sessão em segundo plano: "Habblaud: " + começo da 1ª linha do pedido. */
+/** Nome da sessão em segundo plano: "<marca>: " + começo da 1ª linha do pedido. */
 export function sessionName(prompt: string): string {
   const line = prompt.split('\n').map((l) => l.trim()).find(Boolean) ?? '';
   const cut = line.length > NAME_MAX ? `${line.slice(0, NAME_MAX - 1)}…` : line;
-  return cut ? `Habblaud: ${cut}` : 'Habblaud';
+  return cut ? `${BRAND}: ${cut}` : BRAND;
 }
 
 /** Argumentos do `claude`: o pedido depois de `--` (um pedido "doctor" ou "-x" continua sendo pedido). */
