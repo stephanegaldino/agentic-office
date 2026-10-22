@@ -2,6 +2,7 @@
 // de progresso.
 import type { AccountInfo, Activity, AgentInfo, AgentStatus, Provider } from '../../../shared/types';
 import { h, setAttr, setHidden, setStyleVar, setText, setTitle, setVariant } from './dom';
+import { BRAND } from '../../../shared/brand';
 import { WORDMARK } from './icons';
 import { shellDoneKind, shellLine, shellStage, statusLabel, type ShellWait } from './model';
 import { accountChipLabel, accountProvider, fallbackShort, showsProviderTag } from './provider';
@@ -133,6 +134,6 @@ export function updateShellActivityLine(el: HTMLElement, wait: ShellWait, now: n
 export function wordmark(cls = 'ui-brand__name'): HTMLElement {
   const el = h('span', { class: cls });
   el.innerHTML = WORDMARK;
-  el.append(h('span', { class: 'ui-sr', text: 'Habblaud' }));
+  el.append(h('span', { class: 'ui-sr', text: BRAND }));
   return el;
 }

@@ -7,6 +7,7 @@ import { h, setAttr, setHidden, setText, setTitle, setVariant } from './dom';
 import { formatDateTime, relativeTime } from './format';
 import { pixelIcon } from './icons';
 import { safeLocalStorage } from './prefs';
+import { BRAND } from '../../../shared/brand';
 import { tr } from '../../../shared/i18n';
 
 /** Última versão nova já avisada neste navegador (o aviso sai uma vez por versão). */
@@ -156,7 +157,7 @@ export class AboutGroup {
       'div',
       { class: 'ui-set-group ui-about', attrs: { id: 'ui-about' } },
       h('h3', { text: tr('Sobre'), tabIndex: -1 }),
-      h('div', { class: 'ui-about__head' }, h('span', { class: 'ui-about__name' }, 'Habblaud ', this.name), this.checkBtn),
+      h('div', { class: 'ui-about__head' }, h('span', { class: 'ui-about__name' }, `${BRAND} `, this.name), this.checkBtn),
       this.status,
       this.fresh,
       this.repo,

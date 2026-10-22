@@ -656,7 +656,7 @@
 
 .ui-wordmark {
   display: block;
-  width: 135px;
+  width: 170px;
   height: 24px;
   image-rendering: pixelated;
 }
@@ -3317,7 +3317,7 @@
 }
 
 .ui-splash__name .ui-wordmark {
-  width: 225px;
+  width: 284px;
   height: 40px;
 }
 

@@ -19,6 +19,7 @@ import { randomBytes, X509Certificate } from 'node:crypto';
 import { chmodSync, copyFileSync, existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import { hostname, networkInterfaces, tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { BRAND } from '../../shared/brand';
 import { tr } from '../../shared/i18n';
 
 export const CA_DAYS = 3650;
@@ -210,8 +211,8 @@ export function ensureCa(paths: TlsPaths, label: string, run: Run = spawnSync, d
         'prompt = no',
         'x509_extensions = v3_ca',
         '[dn]',
-        `CN = Habblaud local CA (${label.replace(/[^A-Za-z0-9 .-]/g, '')})`,
-        'O = Habblaud',
+        `CN = ${BRAND} local CA (${label.replace(/[^A-Za-z0-9 .-]/g, '')})`,
+        `O = ${BRAND}`,
         '[v3_ca]',
         'basicConstraints = critical,CA:TRUE,pathlen:0',
         'keyUsage = critical,keyCertSign,cRLSign',
@@ -257,7 +258,7 @@ export function issueServerCert(paths: TlsPaths, targets: CertTargets, run: Run 
         '',
       ].join('\n'),
     );
-    openssl(run, ['req', '-new', '-newkey', 'rsa:2048', '-nodes', '-sha256', '-keyout', key, '-out', csr, '-subj', `/CN=${cn}/O=Habblaud`]);
+    openssl(run, ['req', '-new', '-newkey', 'rsa:2048', '-nodes', '-sha256', '-keyout', key, '-out', csr, '-subj', `/CN=${cn}/O=${BRAND}`]);
     openssl(run, [
       'x509', '-req', '-in', csr, '-CA', paths.caCert, '-CAkey', paths.caKey, '-sha256', '-days', String(SERVER_DAYS),
       '-set_serial', `0x${randomBytes(16).toString('hex')}`, '-extfile', ext, '-out', crt,

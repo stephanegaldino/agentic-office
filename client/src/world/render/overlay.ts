@@ -15,6 +15,7 @@ import type { Sim } from '../sim/sim';
 import { buildAnim } from './anim';
 import { drawFxBanner } from './github-fx';
 import type { HeadInfo, Renderer } from './renderer';
+import { BRAND } from '../../../../shared/brand';
 import { tr } from '../../../../shared/i18n';
 
 // A Pixelify Sans tem o "C" maiúsculo quase fechado (lê-se "Oopa" em vez de "Copa") em qualquer
@@ -436,7 +437,7 @@ export class Overlay {
       const text = room
         ? room.info.name
         : vis.layout.kind === 'reception'
-          ? 'Habblaud'
+          ? BRAND
           : vis.layout.kind === 'lobby'
             ? `${vis.layout.floor + 1}º andar`
             : null;
