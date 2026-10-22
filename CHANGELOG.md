@@ -10,6 +10,14 @@ do meio (0.**3**.0).
 
 ## [Não lançado]
 
+### Agentic Office (fork)
+
+- **Nome:** o escritório passa a se chamar Agentic Office (fork do Habblaud 1.0.3, de Márcio Junior). A troca é só no que
+  aparece: título, logotipo, placa da recepção, notificações, plugins e READMEs. Variáveis `HABBLAUD_*`, `~/.habblaud`,
+  ids dos plugins e nomes do Docker continuam os mesmos; o Habblaud World mantém o nome.
+- **Comando:** `/habblaud` vira `/office`.
+- **Andares:** o prédio cresce em andares (recepção no térreo, lobbies "Nº andar") em vez de crescer para o lado.
+
 ## [1.0.3] - 2026-10-16
 
 ### Corrigido

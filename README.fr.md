@@ -1,8 +1,8 @@
 <p align="center">
-  <img src="client/public/assets/brand/logo-mark@4x.png" width="96" alt="Logo de Habblaud : un petit immeuble en pixel art" />
+  <img src="client/public/assets/brand/logo-mark@4x.png" width="96" alt="Logo de Agentic Office : un petit immeuble en pixel art" />
 </p>
 
-<h1 align="center">Habblaud</h1>
+<h1 align="center">Agentic Office</h1>
 
 <p align="center">
   <b>Le bureau virtuel de vos agents Claude Code (et Codex).</b><br />
@@ -10,6 +10,7 @@
 </p>
 
 <p align="center"><a href="README.md">English</a> · <a href="README.pt-BR.md">Português</a> · <a href="README.es.md">Español</a> · <b>Français</b></p>
+<p align="center"><i>Agentic Office est un fork de <a href="https://github.com/marmottajr/habblaud">Habblaud</a>, de Márcio Junior (MIT). Le nom change ; le bureau, les plugins et le Habblaud World sont son œuvre.</i></p>
 
 <p align="center">
   <img alt="Node.js 22.12+" src="https://img.shields.io/badge/node-%E2%89%A522.12-5fa04e?logo=node.js&logoColor=white" />
@@ -139,7 +140,7 @@ l'immeuble ne garde pas de trous et rétrécit tout seul.
 ### 1. Téléchargez le projet
 
 ```bash
-git clone https://github.com/marmottajr/habblaud.git
+git clone https://github.com/stephanegaldino/agentic-office.git habblaud
 cd habblaud
 npm install
 ```
@@ -182,7 +183,7 @@ Claude Code) et l'installe dans chaque compte, via `claude plugin` lui-même, à
 
 - l'**utilisation sur 5 heures et sur la semaine** de chaque compte s'affiche en direct dans Habblaud ;
 - le terminal affiche une ligne quand **une autre session a besoin de vous** (permission ou réponse) ;
-- la commande **`/habblaud`** devient disponible dans Claude Code ;
+- la commande **`/office`** devient disponible dans Claude Code ;
 - vous pouvez **valider ou refuser depuis le bureau** les demandes de permission (« Do you want to… ») et **répondre aux
   questions** de l'agent, avec le plugin `habblaud-permissoes` (voir [Répondre depuis le bureau](#répondre-depuis-le-bureau)) ;
 - vous pouvez **envoyer des messages** à l'agent depuis le bureau, comme si vous tapiez dans son terminal, avec le plugin
@@ -315,7 +316,7 @@ cookie en clair sur le réseau). En mode Node : `HABBLAUD_REMOTE_PORT` et `HABBL
 ### Mettre à jour
 
 La version utilisée apparaît dans la barre du haut, à côté de « Connecté », et dans **Réglages › À propos**. Toutes les
-6 heures, Habblaud vérifie sur GitHub si une nouvelle version est sortie (les [releases](https://github.com/marmottajr/habblaud/releases)
+6 heures, Habblaud vérifie sur GitHub si une nouvelle version est sortie (les [releases](https://github.com/stephanegaldino/agentic-office/releases)
 de ce dépôt). Si c'est le cas, le badge vert **Nouvelle version** remplace le numéro, avec une alerte et un point sur
 le bouton des réglages. Dans **À propos**, vous trouverez le lien vers ce qui a changé et le bouton **Vérifier
 maintenant** (les notes de chaque version sont aussi dans [`CHANGELOG.md`](CHANGELOG.md)). Pour mettre à jour :
@@ -353,8 +354,8 @@ npm run docker:up        # tira o container codetown e copia os dados do volume 
 - **Navigateur :** les préférences et les pièces passent aux nouvelles clés la première fois que la page s'ouvre.
 - **Variables :** les `CODETOWN_*` ne sont plus prises en compte ; renommez-les en `HABBLAUD_*` dans le `.env` (ex. : `HABBLAUD_BIND`). Le
   serveur et `docker:up` vous préviennent quand ils en trouvent une ancienne.
-- **Dépôt :** c'est désormais `github.com/marmottajr/habblaud` (GitHub redirige l'ancienne adresse). Pour mettre à jour le
-  clone : `git remote set-url origin https://github.com/marmottajr/habblaud.git`. Le dossier local peut garder son
+- **Dépôt :** c'est désormais `github.com/stephanegaldino/agentic-office` (GitHub redirige l'ancienne adresse). Pour mettre à jour le
+  clone : `git remote set-url origin https://github.com/stephanegaldino/agentic-office.git`. Le dossier local peut garder son
   ancien nom.
 - Les sauvegardes du `settings.json` faites avant le changement de nom gardent le nom `settings.json.codetown-backup-<data>`.
 
@@ -979,14 +980,14 @@ avec `no-new-privileges`. Les métadonnées des comptes (lettre, e-mail, organis
   est listé dans [`mod/README.md`](mod/README.md) — `claude plugin validate mod/habblaud` affiche les événements et les
   appels, sans rien exécuter. Il n'enregistre que les pourcentages d'utilisation sur 5 heures et sur la semaine (et le
   moment où ils se réinitialisent) dans `~/.habblaud/usage/<conta>.json` ; pour la ligne « a besoin de vous » et
-  `/habblaud`, il ne parle à Habblaud que sur `127.0.0.1`. Il ne lit pas la conversation, n'appelle pas le modèle et
+  `/office`, il ne parle à Habblaud que sur `127.0.0.1`. Il ne lit pas la conversation, n'appelle pas le modèle et
   n'envoie rien hors de l'ordinateur. Il est lu depuis ce dossier : ce qui s'y trouve (y compris après un `git pull`)
   est ce qui s'exécute. Le plugin de messages (`habblaud-mensagens`) est séparé justement parce qu'il agit : il tape dans
   la session ce que vous avez envoyé depuis le bureau.
 - **Local uniquement, par défaut :** le serveur n'accepte que les connexions venant de l'ordinateur lui-même ; ouvrir
   l'accès au réseau local est facultatif. Il n'y a pas de télémétrie. Le seul appel externe est la vérification de
   nouvelle version : toutes les 6 heures, une requête anonyme, sans token, à l'API publique de GitHub
-  (`api.github.com/repos/marmottajr/habblaud/releases/latest`). Elle n'envoie rien sur vos sessions ; GitHub ne voit que
+  (`api.github.com/repos/stephanegaldino/agentic-office/releases/latest`). Elle n'envoie rien sur vos sessions ; GitHub ne voit que
   votre IP et la version utilisée, qui figure dans le `User-Agent`.
   `HABBLAUD_UPDATE_CHECK=0` désactive la requête.
   [Habblaud World](#habblaud-world) (activé par défaut) n'envoie quelque chose au serveur du monde qu'après la création

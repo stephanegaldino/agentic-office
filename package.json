@@ -2,13 +2,13 @@
   "name": "habblaud",
   "version": "1.0.3",
   "private": true,
-  "description": "Escritório virtual animado que mostra, em tempo real, o que seus agentes do Claude Code estão fazendo.",
+  "description": "Agentic Office: escritório virtual animado (fork do Habblaud) que mostra, em tempo real, o que seus agentes do Claude Code estão fazendo.",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/marmottajr/habblaud.git"
+    "url": "git+https://github.com/stephanegaldino/agentic-office.git"
   },
-  "homepage": "https://github.com/marmottajr/habblaud#readme",
+  "homepage": "https://github.com/stephanegaldino/agentic-office#readme",
   "type": "module",
   "engines": {
     "node": ">=22.12"
