@@ -682,7 +682,7 @@ export class Renderer {
   /** Placa com o nome (o texto nítido é escrito pelo overlay em espaço de tela). */
   private drawSign(vis: AreaVis, w: WallVis, slide: number): void {
     const { ctx } = this;
-    if (!vis.room && this.assets?.signage && vis.id === 'core:recepcao') {
+    if (!vis.room && this.assets?.signage && vis.layout.kind === 'reception') {
       const a = this.assets.signage;
       const maxW = 5 * TILE;
       const maxH = 24;
