@@ -32,7 +32,7 @@
 
 ---
 
-### Tarefa 1: Fork no GitHub e remotes
+### Task 1: Fork no GitHub e remotes
 
 **Files:**
 - Modify: `.git/config` (via `git remote`)
@@ -70,7 +70,7 @@ git log --oneline -2        # 7297caa Spec…, faa1a01 Versão 1.0.3…
 
 ---
 
-### Tarefa 2: Portar "Prédio de vários andares" para a 1.0.3
+### Task 2: Portar "Prédio de vários andares" para a 1.0.3
 
 **Files:**
 - Modify (via cherry-pick de `df47380`): 21 arquivos em `client/src/world/**`
@@ -159,7 +159,7 @@ Abrir `http://localhost:4747`: o prédio cresce em andares (não para o lado), a
 
 ---
 
-### Tarefa 3: Camada de marca em `shared/brand.ts` e integração no `tr()`
+### Task 3: Camada de marca em `shared/brand.ts` e integração no `tr()`
 
 **Files:**
 - Create: `shared/brand.ts`
@@ -297,7 +297,7 @@ Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>"
 
 ---
 
-### Tarefa 4: Textos fora do `tr()` no cliente e no servidor
+### Task 4: Textos fora do `tr()` no cliente e no servidor
 
 **Files:**
 - Modify: `client/index.html:9-22`
@@ -461,7 +461,7 @@ Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>"
 
 ---
 
-### Tarefa 5: Placa física da recepção (`signage.png`)
+### Task 5: Placa física da recepção (`signage.png`)
 
 **Files:**
 - Modify: `scripts/assets/pixelart.py:261-289` (`signage()`)
@@ -585,7 +585,7 @@ Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>"
 
 ---
 
-### Tarefa 6: Plugins e o comando `/office`
+### Task 6: Plugins e o comando `/office`
 
 **Files:**
 - Modify: `mod/habblaud/hooks/register.ts:228-244`, `:361-376`, `:403`
@@ -765,7 +765,7 @@ Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>"
 
 ---
 
-### Tarefa 7: `package.json`, READMEs, licença e CHANGELOG
+### Task 7: `package.json`, READMEs, licença e CHANGELOG
 
 **Files:**
 - Modify: `package.json:5-11`
@@ -868,7 +868,7 @@ Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>"
 
 ---
 
-### Tarefa 8: Subir a nova versão no Mac e nos plugins
+### Task 8: Subir a nova versão no Mac e nos plugins
 
 **Files:**
 - Nenhum no repositório. Toca: container `habblaud`, plugins em `~/.claude/plugins/cache/habblaud/*`.
@@ -915,7 +915,7 @@ Abrir `http://localhost:4747`: aba, logotipo, placa e "Sobre" com Agentic Office
 
 ---
 
-### Tarefa 9: Acesso remoto com login + Tailscale Serve
+### Task 9: Acesso remoto com login + Tailscale Serve
 
 **Files:**
 - Create: `.env` (gerado por `remote:setup`; fora do git) com as linhas abaixo
@@ -998,7 +998,7 @@ Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>"
 
 ---
 
-### Tarefa 10: Publicar o fork
+### Task 10: Publicar o fork
 
 **Files:**
 - Nenhum. Toca: `origin` (GitHub), branch padrão do fork.
